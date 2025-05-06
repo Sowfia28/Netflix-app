@@ -51,6 +51,8 @@ This project uses a combination of Netflix, IMDb, and Rotten Tomatoes datasets t
 
 ---
 
+## 5. Streamlit App
+
 ## Usage Notes
 
 - Ensure all datasets are in the root or data directory
