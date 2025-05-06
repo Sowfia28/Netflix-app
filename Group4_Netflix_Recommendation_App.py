@@ -13,11 +13,11 @@ st.markdown('Predict and Recommend movies based on IMDb and Rotten Tomatoes scor
 # --- Caching Data Load and Model Training ---
 @st.cache_data
 def load_and_train_models():
-    project_df = pd.read_csv("https://drive.google.com/uc?export=download&id=1oOwysFn83UOPg46TcGnvisWFJvAlgAmA")
-    title_basics = pd.read_csv("https://drive.google.com/uc?export=download&id=1oy7Q7HzhD5HsWvJhWkBvxWWtXF6AHbZp", sep="\t", na_values="\\N", low_memory=False)
-    title_ratings = pd.read_csv("https://drive.google.com/uc?export=download&id=1kQ0KfL0XfFkgmmDiTXbBXMFWDokQCmnD", sep="\t", na_values="\\N", low_memory=False)
-    title_crew = pd.read_csv("https://drive.google.com/uc?export=download&id=1QKdJxZVIg_KRx6Rd8Bi63bQk1Y48wM6q", sep="\t", na_values="\\N")
-    name_basics = pd.read_csv("https://drive.google.com/uc?export=download&id=1iAsW1ZPYYQpxVYq2_2cCQWQn8SVGRr_C", sep="\t", na_values="\\N")
+    project_df = pd.read_csv("https://media.githubusercontent.com/media/Sowfia28/Netflix-analysis/refs/heads/main/Project%203_data.csv")
+    title_basics = pd.read_csv("https://media.githubusercontent.com/media/Sowfia28/Netflix-analysis/refs/heads/main/title.basics.tsv", sep="\t", na_values="\\N", low_memory=False)
+    title_ratings = pd.read_csv("https://media.githubusercontent.com/media/Sowfia28/Netflix-analysis/refs/heads/main/title.ratings.tsv", sep="\t", na_values="\\N", low_memory=False)
+    title_crew = pd.read_csv("https://media.githubusercontent.com/media/Sowfia28/Netflix-analysis/refs/heads/main/title.crew.tsv", sep="\t", na_values="\\N")
+    name_basics = pd.read_csv("https://media.githubusercontent.com/media/Sowfia28/Netflix-analysis/refs/heads/main/name.basics.tsv", sep="\t", na_values="\\N")
 
     project_df.rename(columns={'title': 'primaryTitle'}, inplace=True)
     df_imdb = pd.merge(project_df, title_basics[['tconst', 'primaryTitle']], on='primaryTitle', how='left')
@@ -37,8 +37,8 @@ def load_and_train_models():
     imdb_preds = ridge_model_imdb.predict(X_encoded_imdb)
     imdb_threshold = np.median(imdb_preds)
 
-    project_df = pd.read_csv("https://drive.google.com/uc?export=download&id=1oOwysFn83UOPg46TcGnvisWFJvAlgAmA")
-    df_info = pd.read_csv("https://drive.google.com/uc?export=download&id=13fvosTfqx-atwdHvOhfdE3d3ypPsAd2w")
+    project_df = pd.read_csv("https://media.githubusercontent.com/media/Sowfia28/Netflix-analysis/refs/heads/main/Project%203_data.csv")
+    df_info = pd.read_csv("https://media.githubusercontent.com/media/Sowfia28/Netflix-analysis/refs/heads/main/movie_info.csv")
     df_info['audience_score'] = df_info['audience_score'].str.rstrip('%').astype(float)
     df_info['critic_score'] = df_info['critic_score'].str.rstrip('%').astype(float)
     df_netflix['title'] = df_netflix['title'].str.strip().str.lower()
