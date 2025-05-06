@@ -52,6 +52,8 @@ This project uses a combination of Netflix, IMDb, and Rotten Tomatoes datasets t
 ---
 
 ## 5. Streamlit App
+Run the "Group4_Netflix_Recommendation_App.py" using the terminal using the following command:
+**streamlit run Group4_Netflix_Recommendation_App.py**
 
 ## Usage Notes
 
