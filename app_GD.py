@@ -11,9 +11,9 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.linear_model import Ridge, LinearRegression, LogisticRegression
 from sklearn.model_selection import train_test_split
 
-def load_from_drive(file_id, sep=","):
-    url = f"https://drive.google.com/uc?export=download&id={file_id}"
-    response = requests.get(url)
+def load_from_github(file_path, sep=","):
+    raw_url = f"https://raw.githubusercontent.com/Sowfia28/Netflix-analysis/main/{file_path}"
+    response = requests.get(raw_url)
     return pd.read_csv(StringIO(response.text), sep=sep)
 
 # --- Page Setup ---
@@ -24,13 +24,13 @@ st.markdown('Predict and Recommend movies based on IMDb and Rotten Tomatoes scor
 # --- Caching Data Load and Model Training ---
 @st.cache_data
 def load_and_train_models():
-    # Google Drive File IDs
-    project_df = load_from_drive("1oOwysFn83UOPg46TcGnvisWFJvAlgAmA", sep=",")
-    title_basics = load_from_drive("1oy7Q7HzhD5HsWvJhWkBvxWWtXF6AHbZp", sep="\t")
-    title_ratings = load_from_drive("1kQ0KfL0XfFkgmmDiTXbBXMFWDokQCmnD", sep="\t")
-    title_crew = load_from_drive("1QKdJxZVIg_KRx6Rd8Bi63bQk1Y48wM6q", sep="\t")
-    name_basics = load_from_drive("1iAsW1ZPYYQpxVYq2_2cCQWQn8SVGRr_C", sep="\t")
-    df_info = load_from_drive("13fvosTfqx-atwdHvOhfdE3d3ypPsAd2w", sep=",")
+    # GitHub file loads
+    project_df = load_from_github("Project 3_data.csv", sep=",")
+    title_basics = load_from_github("title.basics.tsv", sep="\t")
+    title_ratings = load_from_github("title.ratings.tsv", sep="\t")
+    title_crew = load_from_github("title.crew.tsv", sep="\t")
+    name_basics = load_from_github("name.basics.tsv", sep="\t")
+    df_info = load_from_github("df_info.csv", sep=",")
 
     # IMDb Ridge Regression
     project_df.rename(columns={'title': 'primaryTitle'}, inplace=True)
@@ -71,7 +71,7 @@ def load_and_train_models():
 
     df_logistic_rt = combined_rt.copy()
     df_logistic_rt['recommend'] = np.where(
-        (df_logistic_rt['audience_score'] >= audience_threshold) & 
+        (df_logistic_rt['audience_score'] >= audience_threshold) &
         (df_logistic_rt['critic_score'] >= critic_threshold), 1, 0)
 
     X_log_rt = df_logistic_rt[['country', 'director', 'listed_in']]
