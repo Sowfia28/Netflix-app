@@ -142,10 +142,14 @@ def load_and_train_models():
             logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns)
 
 # --- Load Models ---
-(ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge,
- audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, cols_rt_linear,
- logistic_model_rt, encoder_rt_logistic,
- logistic_model_imdb, encoder_imdb_log, cols_imdb_logistic) = load_and_train_models()
+try:
+    (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge,
+     audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, cols_rt_linear,
+     logistic_model_rt, encoder_rt_logistic,
+     logistic_model_imdb, encoder_imdb_log, cols_imdb_logistic) = load_and_train_models()
+except Exception as e:
+    st.error(f"❌ Error while loading models or data:\n{e}")
+    st.stop()
 
 # --- User Input ---
 st.header("Enter Movie Details:")
