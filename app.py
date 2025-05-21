@@ -15,24 +15,37 @@ st.markdown('Predict and Recommend movies based on IMDb and Rotten Tomatoes scor
 # --- Function to Download and Extract 3-Part Datasets ---
 @st.cache_resource
 def download_and_extract_data():
+    import gdown
+    import zipfile
+
     zip_files = {
-        "datasets_part1.zip": "1K3xGUjZcllFSMz3Y85HDS3tyrqE6gPzJ",  # Project 3_data.csv, movie_info.csv
-        "datasets_part2.zip": "1TJj-NcqY-rA4D78x4pHTiPnVKDSBlNrq",  # title.basics.tsv, title.ratings.tsv
-        "datasets_part3.zip": "1nz2RjBMNigex-ojPry_SuO2zcepV_ImY",  # name.basics.tsv, title.crew.tsv
+        "datasets_part1.zip": "1K3xGUjZcllFSMz3Y85HDS3tyrqE6gPzJ",
+        "datasets_part2.zip": "1TJj-NcqY-rA4D78x4pHTiPnVKDSBlNrq",
+        "datasets_part3.zip": "1nz2RjBMNigex-ojPry_SuO2zcepV_ImY",
     }
 
-    key_check_files = {
+    key_files = {
         "datasets_part1.zip": "Project 3_data.csv",
         "datasets_part2.zip": "title.basics.tsv",
-        "datasets_part3.zip": "name.basics.tsv"
+        "datasets_part3.zip": "name.basics.tsv",
     }
 
     for zip_name, file_id in zip_files.items():
-        check_file = key_check_files[zip_name]
+        check_file = key_files[zip_name]
         if not os.path.exists(check_file):
             gdown.download(f"https://drive.google.com/uc?id={file_id}", zip_name, quiet=False)
+
+            # Extract all files into current directory regardless of folder structure inside zip
             with zipfile.ZipFile(zip_name, 'r') as zip_ref:
-                zip_ref.extractall()
+                for member in zip_ref.namelist():
+                    filename = os.path.basename(member)
+                    if not filename:
+                        continue  # skip directories
+                    source = zip_ref.open(member)
+                    target = open(filename, "wb")
+                    with source, target:
+                        target.write(source.read())
+
             os.remove(zip_name)
 
 download_and_extract_data()
