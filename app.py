@@ -4,20 +4,38 @@ import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.linear_model import Ridge, LinearRegression, LogisticRegression
 from sklearn.model_selection import train_test_split
+import os, zipfile, requests
 
 # --- Page Setup ---
 st.set_page_config(page_title="NextFlix", layout="centered")
 st.title('NextFlix')
 st.markdown('Predict and Recommend movies based on IMDb and Rotten Tomatoes scores.')
 
+# --- Function to Download and Extract ZIP from Google Drive ---
+@st.cache_resource
+def download_and_extract_data():
+    zip_file_id = '11PzGkLrz6N06EbF_h6UtBGex5ToS9iwb'
+    zip_url = f"https://drive.google.com/uc?id={zip_file_id}"
+    zip_path = "datasets.zip"
+
+    if not os.path.exists("Project 3_data.csv"):  # Only download if not already present
+        with requests.get(zip_url, stream=True) as r:
+            with open(zip_path, 'wb') as f:
+                f.write(r.content)
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall()
+        os.remove(zip_path)
+
+download_and_extract_data()
+
 # --- Caching Data Load and Model Training ---
 @st.cache_data
 def load_and_train_models():
-    project_df = pd.read_csv("https://media.githubusercontent.com/media/Sowfia28/Netflix-analysis/refs/heads/main/Project%203_data.csv")
-    title_basics = pd.read_csv("https://media.githubusercontent.com/media/Sowfia28/Netflix-analysis/refs/heads/main/title.basics.tsv", sep="\t", na_values="\\N", low_memory=False)
-    title_ratings = pd.read_csv("https://media.githubusercontent.com/media/Sowfia28/Netflix-analysis/refs/heads/main/title.ratings.tsv", sep="\t", na_values="\\N", low_memory=False)
-    title_crew = pd.read_csv("https://media.githubusercontent.com/media/Sowfia28/Netflix-analysis/refs/heads/main/title.crew.tsv", sep="\t", na_values="\\N")
-    name_basics = pd.read_csv("https://media.githubusercontent.com/media/Sowfia28/Netflix-analysis/refs/heads/main/name.basics.tsv", sep="\t", na_values="\\N")
+    project_df = pd.read_csv("Project 3_data.csv")
+    title_basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", low_memory=False)
+    title_ratings = pd.read_csv("title.ratings.tsv", sep="\t", na_values="\\N", low_memory=False)
+    title_crew = pd.read_csv("title.crew.tsv", sep="\t", na_values="\\N")
+    name_basics = pd.read_csv("name.basics.tsv", sep="\t", na_values="\\N")
 
     project_df.rename(columns={'title': 'primaryTitle'}, inplace=True)
     df_imdb = pd.merge(project_df, title_basics[['tconst', 'primaryTitle']], on='primaryTitle', how='left')
@@ -37,13 +55,13 @@ def load_and_train_models():
     imdb_preds = ridge_model_imdb.predict(X_encoded_imdb)
     imdb_threshold = np.median(imdb_preds)
 
-    project_df = pd.read_csv("https://media.githubusercontent.com/media/Sowfia28/Netflix-analysis/refs/heads/main/Project%203_data.csv")
-    df_info = pd.read_csv("https://media.githubusercontent.com/media/Sowfia28/Netflix-analysis/refs/heads/main/movie_info.csv")
+    project_df = pd.read_csv("Project 3_data.csv")
+    df_info = pd.read_csv("movie_info.csv")
     df_info['audience_score'] = df_info['audience_score'].str.rstrip('%').astype(float)
     df_info['critic_score'] = df_info['critic_score'].str.rstrip('%').astype(float)
-    df_netflix['title'] = df_netflix['title'].str.strip().str.lower()
+    project_df['title'] = project_df['title'].str.strip().str.lower()
     df_info['title'] = df_info['title'].str.strip().str.lower()
-    combined_rt = pd.merge(df_netflix, df_info[['title', 'audience_score', 'critic_score']], on='title', how='inner')
+    combined_rt = pd.merge(project_df, df_info[['title', 'audience_score', 'critic_score']], on='title', how='inner')
     combined_rt.dropna(subset=['country', 'director', 'listed_in', 'audience_score', 'critic_score'], inplace=True)
     combined_rt = combined_rt.drop_duplicates(subset=['title'])
 
@@ -70,11 +88,11 @@ def load_and_train_models():
     X_train_rt, X_test_rt, y_train_rt, y_test_rt = train_test_split(X_encoded_log_rt, y_log_rt, test_size=0.2, random_state=42)
     logistic_model_rt = LogisticRegression(max_iter=1000).fit(X_train_rt, y_train_rt)
 
-    basics = pd.read_csv("https://drive.google.com/uc?id=1oy7Q7HzhD5HsWvJhWkBvxWWtXF6AHbZp", sep="\t", na_values="\\N", dtype=str)
-    ratings = pd.read_csv("https://drive.google.com/uc?id=1kQ0KfL0XfFkgmmDiTXbBXMFWDokQCmnD", sep="\t", na_values="\\N", dtype=str)
-    crew = pd.read_csv("https://drive.google.com/uc?id=1QKdJxZVIg_KRx6Rd8Bi63bQk1Y48wM6q", sep="\t", na_values="\\N", dtype=str)
-    names = pd.read_csv("https://drive.google.com/uc?id=1iAsW1ZPYYQpxVYq2_2cCQWQn8SVGRr_C", sep="\t", na_values='\\N', dtype=str)
-    project3 = pd.read_csv("https://drive.google.com/uc?id=1oOwysFn83UOPg46TcGnvisWFJvAlgAmA")
+    basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", dtype=str)
+    ratings = pd.read_csv("title.ratings.tsv", sep="\t", na_values="\\N", dtype=str)
+    crew = pd.read_csv("title.crew.tsv", sep="\t", na_values="\\N", dtype=str)
+    names = pd.read_csv("name.basics.tsv", sep="\t", na_values="\\N", dtype=str)
+    project3 = pd.read_csv("Project 3_data.csv")
     project3 = project3[['title', 'country']]
     project3['title'] = project3['title'].str.strip().str.lower()
     movies = basics[basics['titleType'] == 'movie'].copy()
@@ -159,9 +177,7 @@ if st.button('Predict'):
                 ]
             })
 
-            # Grouped display with renamed columns
             st.subheader("Prediction Results (Grouped by Model)")
-
             for model in ['Linear', 'Logistic']:
                 st.markdown(f"### {model} Model")
                 filtered = base_results_df[base_results_df['Model'] == model].reset_index(drop=True)
