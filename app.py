@@ -44,8 +44,19 @@ def download_and_extract_data():
 
             os.remove(zip_name)
 
-    st.write("📄 Extracted files:")
-    st.write(os.listdir('.'))
+    extracted = os.listdir('.')
+    st.write("📄 Extracted files in directory:")
+    st.write(extracted)
+
+    required_files = [
+        "Project 3_data.csv", "movie_info.csv",
+        "title.basics.tsv", "title.ratings.tsv",
+        "title.crew.tsv", "name.basics.tsv"
+    ]
+    for file in required_files:
+        if file not in extracted:
+            st.error(f"❌ Missing file after extraction: {file}")
+            st.stop()
 
 download_and_extract_data()
 
@@ -76,7 +87,6 @@ def load_and_train_models():
     imdb_preds = ridge_model_imdb.predict(X_encoded_imdb)
     imdb_threshold = np.median(imdb_preds)
 
-    # Rotten Tomatoes Linear Models
     df_info = pd.read_csv("movie_info.csv")
     df_info['audience_score'] = df_info['audience_score'].str.rstrip('%').astype(float)
     df_info['critic_score'] = df_info['critic_score'].str.rstrip('%').astype(float)
@@ -95,7 +105,6 @@ def load_and_train_models():
     audience_threshold = np.median(audience_model_rt.predict(X_encoded_rt))
     critic_threshold = np.median(critic_model_rt.predict(X_encoded_rt))
 
-    # Logistic RT
     df_logistic_rt = combined_rt.copy()
     df_logistic_rt['recommend'] = np.where(
         (df_logistic_rt['audience_score'] >= audience_threshold) &
@@ -107,7 +116,6 @@ def load_and_train_models():
     X_train_rt, _, y_train_rt, _ = train_test_split(X_encoded_log_rt, y_log_rt, test_size=0.2, random_state=42)
     logistic_model_rt = LogisticRegression(max_iter=1000).fit(X_train_rt, y_train_rt)
 
-    # IMDb Logistic
     basics = title_basics.astype(str)
     ratings = title_ratings.astype(str)
     crew = title_crew.astype(str)
@@ -141,14 +149,16 @@ def load_and_train_models():
             logistic_model_rt, encoder_rt_logistic,
             logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns)
 
-# --- Load Models ---
+# --- Load Models with Exception Display ---
 try:
+    st.write("🔍 Starting model loading...")
     (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge,
      audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, cols_rt_linear,
      logistic_model_rt, encoder_rt_logistic,
      logistic_model_imdb, encoder_imdb_log, cols_imdb_logistic) = load_and_train_models()
+    st.success("✅ Models loaded successfully.")
 except Exception as e:
-    st.error(f"❌ Error while loading models or data:\n{e}")
+    st.error(f"🚨 Streamlit app crashed during model loading:\n\n{type(e).__name__}: {e}")
     st.stop()
 
 # --- User Input ---
@@ -180,7 +190,6 @@ if st.button('Predict'):
             imdb_log_pred = logistic_model_imdb.predict(imdb_log_input)[0]
             imdb_log_conf = logistic_model_imdb.predict_proba(imdb_log_input)[0][1]
 
-            # Results Table
             base_results_df = pd.DataFrame({
                 'S.No': [1, 2, 3, 4],
                 'Model': ['Linear', 'Linear', 'Logistic', 'Logistic'],
