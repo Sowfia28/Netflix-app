@@ -4,27 +4,36 @@ import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.linear_model import Ridge, LinearRegression, LogisticRegression
 from sklearn.model_selection import train_test_split
-import os, zipfile, requests
+import os, zipfile
+import gdown
 
 # --- Page Setup ---
 st.set_page_config(page_title="NextFlix", layout="centered")
 st.title('NextFlix')
 st.markdown('Predict and Recommend movies based on IMDb and Rotten Tomatoes scores.')
 
-# --- Function to Download and Extract ZIP from Google Drive ---
+# --- Function to Download and Extract 3-Part Datasets ---
 @st.cache_resource
 def download_and_extract_data():
-    zip_file_id = '11PzGkLrz6N06EbF_h6UtBGex5ToS9iwb'
-    zip_url = f"https://drive.google.com/uc?id={zip_file_id}"
-    zip_path = "datasets.zip"
+    zip_files = {
+        "datasets_part1.zip": "1K3xGUjZcllFSMz3Y85HDS3tyrqE6gPzJ",  # Project 3_data.csv, movie_info.csv
+        "datasets_part2.zip": "1TJj-NcqY-rA4D78x4pHTiPnVKDSBlNrq",  # title.basics.tsv, title.ratings.tsv
+        "datasets_part3.zip": "1nz2RjBMNigex-ojPry_SuO2zcepV_ImY",  # name.basics.tsv, title.crew.tsv
+    }
 
-    if not os.path.exists("Project 3_data.csv"):  # Only download if not already present
-        with requests.get(zip_url, stream=True) as r:
-            with open(zip_path, 'wb') as f:
-                f.write(r.content)
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall()
-        os.remove(zip_path)
+    key_check_files = {
+        "datasets_part1.zip": "Project 3_data.csv",
+        "datasets_part2.zip": "title.basics.tsv",
+        "datasets_part3.zip": "name.basics.tsv"
+    }
+
+    for zip_name, file_id in zip_files.items():
+        check_file = key_check_files[zip_name]
+        if not os.path.exists(check_file):
+            gdown.download(f"https://drive.google.com/uc?id={file_id}", zip_name, quiet=False)
+            with zipfile.ZipFile(zip_name, 'r') as zip_ref:
+                zip_ref.extractall()
+            os.remove(zip_name)
 
 download_and_extract_data()
 
@@ -55,11 +64,11 @@ def load_and_train_models():
     imdb_preds = ridge_model_imdb.predict(X_encoded_imdb)
     imdb_threshold = np.median(imdb_preds)
 
-    project_df = pd.read_csv("Project 3_data.csv")
+    # Rotten Tomatoes Linear Models
     df_info = pd.read_csv("movie_info.csv")
     df_info['audience_score'] = df_info['audience_score'].str.rstrip('%').astype(float)
     df_info['critic_score'] = df_info['critic_score'].str.rstrip('%').astype(float)
-    project_df['title'] = project_df['title'].str.strip().str.lower()
+    project_df['title'] = project_df['primaryTitle'].str.strip().str.lower()
     df_info['title'] = df_info['title'].str.strip().str.lower()
     combined_rt = pd.merge(project_df, df_info[['title', 'audience_score', 'critic_score']], on='title', how='inner')
     combined_rt.dropna(subset=['country', 'director', 'listed_in', 'audience_score', 'critic_score'], inplace=True)
@@ -76,46 +85,45 @@ def load_and_train_models():
     audience_threshold = np.median(audience_preds_all)
     critic_threshold = np.median(critic_preds_all)
 
+    # Rotten Tomatoes Logistic Model
     df_logistic_rt = combined_rt.copy()
     df_logistic_rt['recommend'] = np.where(
         (df_logistic_rt['audience_score'] >= audience_threshold) &
         (df_logistic_rt['critic_score'] >= critic_threshold), 1, 0)
-
     X_log_rt = df_logistic_rt[['country', 'director', 'listed_in']]
     y_log_rt = df_logistic_rt['recommend']
     encoder_rt_logistic = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
     X_encoded_log_rt = encoder_rt_logistic.fit_transform(X_log_rt)
-    X_train_rt, X_test_rt, y_train_rt, y_test_rt = train_test_split(X_encoded_log_rt, y_log_rt, test_size=0.2, random_state=42)
+    X_train_rt, _, y_train_rt, _ = train_test_split(X_encoded_log_rt, y_log_rt, test_size=0.2, random_state=42)
     logistic_model_rt = LogisticRegression(max_iter=1000).fit(X_train_rt, y_train_rt)
 
-    basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", dtype=str)
-    ratings = pd.read_csv("title.ratings.tsv", sep="\t", na_values="\\N", dtype=str)
-    crew = pd.read_csv("title.crew.tsv", sep="\t", na_values="\\N", dtype=str)
-    names = pd.read_csv("name.basics.tsv", sep="\t", na_values="\\N", dtype=str)
-    project3 = pd.read_csv("Project 3_data.csv")
-    project3 = project3[['title', 'country']]
-    project3['title'] = project3['title'].str.strip().str.lower()
+    # IMDb Logistic Model
+    basics = title_basics.astype(str)
+    ratings = title_ratings.astype(str)
+    crew = title_crew.astype(str)
+    names = name_basics.astype(str)
+    project3 = pd.read_csv("Project 3_data.csv")[['primaryTitle', 'country']]
+    project3['primaryTitle'] = project3['primaryTitle'].str.strip().str.lower()
+
     movies = basics[basics['titleType'] == 'movie'].copy()
     movies['primaryTitle'] = movies['primaryTitle'].str.strip().str.lower()
     df_imdb_log = movies.merge(ratings, on='tconst', how='inner')
     df_imdb_log = df_imdb_log.merge(crew[['tconst', 'directors']], on='tconst', how='left')
     df_imdb_log.dropna(subset=['averageRating', 'genres', 'directors'], inplace=True)
     df_imdb_log['averageRating'] = df_imdb_log['averageRating'].astype(float)
-    threshold_imdb_log = df_imdb_log['averageRating'].median()
-    df_imdb_log['recommend'] = (df_imdb_log['averageRating'] >= threshold_imdb_log).astype(int)
+    df_imdb_log['recommend'] = (df_imdb_log['averageRating'] >= df_imdb_log['averageRating'].median()).astype(int)
     df_imdb_log['directors'] = df_imdb_log['directors'].apply(lambda x: x.split(',')[0])
     id_to_name = dict(zip(names['nconst'], names['primaryName']))
     df_imdb_log['director_name'] = df_imdb_log['directors'].map(id_to_name)
-    df_imdb_log = df_imdb_log.merge(project3, left_on='primaryTitle', right_on='title', how='left')
-    df_imdb_log.rename(columns={'country': 'real_country'}, inplace=True)
-    df_imdb_log.dropna(subset=['real_country', 'director_name'], inplace=True)
+    df_imdb_log = df_imdb_log.merge(project3, left_on='primaryTitle', right_on='primaryTitle', how='left')
+    df_imdb_log.dropna(subset=['country', 'director_name'], inplace=True)
 
-    features_imdb_log = df_imdb_log[['real_country', 'director_name', 'genres']]
+    features_imdb_log = df_imdb_log[['country', 'director_name', 'genres']]
     features_imdb_log.columns = ['country', 'director', 'listed_in']
     target_imdb_log = df_imdb_log['recommend']
     encoder_imdb_log = OneHotEncoder(handle_unknown='ignore')
     X_encoded_imdb_log = encoder_imdb_log.fit_transform(features_imdb_log)
-    X_train_imdb, X_test_imdb, y_train_imdb, y_test_imdb = train_test_split(X_encoded_imdb_log, target_imdb_log, test_size=0.2, random_state=42)
+    X_train_imdb, _, y_train_imdb, _ = train_test_split(X_encoded_imdb_log, target_imdb_log, test_size=0.2, random_state=42)
     logistic_model_imdb = LogisticRegression(max_iter=1000).fit(X_train_imdb, y_train_imdb)
 
     return (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, X_raw_imdb.columns,
