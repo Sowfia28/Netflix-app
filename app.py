@@ -47,7 +47,9 @@ def download_and_extract_data():
                         target.write(source.read())
 
             os.remove(zip_name)
-
+            
+            st.write("📄 Files in current directory:")
+            st.write(os.listdir('.'))
 download_and_extract_data()
 
 # --- Caching Data Load and Model Training ---
