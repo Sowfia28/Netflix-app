@@ -15,9 +15,6 @@ st.markdown('Predict and Recommend movies based on IMDb and Rotten Tomatoes scor
 # --- Function to Download and Extract 3-Part Datasets ---
 @st.cache_resource
 def download_and_extract_data():
-    import gdown
-    import zipfile
-
     zip_files = {
         "datasets_part1.zip": "1K3xGUjZcllFSMz3Y85HDS3tyrqE6gPzJ",
         "datasets_part2.zip": "1TJj-NcqY-rA4D78x4pHTiPnVKDSBlNrq",
@@ -33,23 +30,23 @@ def download_and_extract_data():
     for zip_name, file_id in zip_files.items():
         check_file = key_files[zip_name]
         if not os.path.exists(check_file):
+            st.write(f"🔽 Downloading {zip_name}...")
             gdown.download(f"https://drive.google.com/uc?id={file_id}", zip_name, quiet=False)
 
-            # Extract all files into current directory regardless of folder structure inside zip
+            st.write(f"📦 Extracting {zip_name}...")
             with zipfile.ZipFile(zip_name, 'r') as zip_ref:
                 for member in zip_ref.namelist():
                     filename = os.path.basename(member)
                     if not filename:
-                        continue  # skip directories
-                    source = zip_ref.open(member)
-                    target = open(filename, "wb")
-                    with source, target:
+                        continue
+                    with zip_ref.open(member) as source, open(filename, "wb") as target:
                         target.write(source.read())
 
             os.remove(zip_name)
-            
-            st.write("📄 Files in current directory:")
-            st.write(os.listdir('.'))
+
+    st.write("📄 Extracted files:")
+    st.write(os.listdir('.'))
+
 download_and_extract_data()
 
 # --- Caching Data Load and Model Training ---
@@ -95,12 +92,10 @@ def load_and_train_models():
     X_encoded_rt = encoder_rt_linear.fit_transform(X_raw_rt)
     audience_model_rt = LinearRegression().fit(X_encoded_rt, y_rt['audience_score'])
     critic_model_rt = LinearRegression().fit(X_encoded_rt, y_rt['critic_score'])
-    audience_preds_all = audience_model_rt.predict(X_encoded_rt)
-    critic_preds_all = critic_model_rt.predict(X_encoded_rt)
-    audience_threshold = np.median(audience_preds_all)
-    critic_threshold = np.median(critic_preds_all)
+    audience_threshold = np.median(audience_model_rt.predict(X_encoded_rt))
+    critic_threshold = np.median(critic_model_rt.predict(X_encoded_rt))
 
-    # Rotten Tomatoes Logistic Model
+    # Logistic RT
     df_logistic_rt = combined_rt.copy()
     df_logistic_rt['recommend'] = np.where(
         (df_logistic_rt['audience_score'] >= audience_threshold) &
@@ -112,7 +107,7 @@ def load_and_train_models():
     X_train_rt, _, y_train_rt, _ = train_test_split(X_encoded_log_rt, y_log_rt, test_size=0.2, random_state=42)
     logistic_model_rt = LogisticRegression(max_iter=1000).fit(X_train_rt, y_train_rt)
 
-    # IMDb Logistic Model
+    # IMDb Logistic
     basics = title_basics.astype(str)
     ratings = title_ratings.astype(str)
     crew = title_crew.astype(str)
@@ -146,7 +141,7 @@ def load_and_train_models():
             logistic_model_rt, encoder_rt_logistic,
             logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns)
 
-# --- Load All Models ---
+# --- Load Models ---
 (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge,
  audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, cols_rt_linear,
  logistic_model_rt, encoder_rt_logistic,
@@ -181,7 +176,7 @@ if st.button('Predict'):
             imdb_log_pred = logistic_model_imdb.predict(imdb_log_input)[0]
             imdb_log_conf = logistic_model_imdb.predict_proba(imdb_log_input)[0][1]
 
-            # Create unified result table
+            # Results Table
             base_results_df = pd.DataFrame({
                 'S.No': [1, 2, 3, 4],
                 'Model': ['Linear', 'Linear', 'Logistic', 'Logistic'],
@@ -204,13 +199,11 @@ if st.button('Predict'):
             for model in ['Linear', 'Logistic']:
                 st.markdown(f"### {model} Model")
                 filtered = base_results_df[base_results_df['Model'] == model].reset_index(drop=True)
-                if model == 'Linear':
-                    filtered = filtered.rename(columns={'Prediction': 'Predicted Ratings/Scores'})
-                else:
-                    filtered = filtered.rename(columns={'Prediction': 'Predicted Confidence Score'})
+                filtered = filtered.rename(columns={
+                    'Prediction': 'Predicted Ratings/Scores' if model == 'Linear' else 'Predicted Confidence Score'
+                })
                 st.dataframe(filtered, use_container_width=True, hide_index=True)
 
-            # Download button
             csv = base_results_df.rename(columns={'Prediction': 'Prediction Value'}).to_csv(index=False)
             st.download_button("Download Results as CSV", data=csv, file_name="recommendation_results.csv", mime="text/csv")
 
