@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.linear_model import Ridge, LinearRegression, LogisticRegression
 from sklearn.model_selection import train_test_split
-import os, zipfile
+import os
 import gdown
 
 # --- Page Setup ---
@@ -12,62 +12,34 @@ st.set_page_config(page_title="NextFlix", layout="centered")
 st.title('NextFlix')
 st.markdown('Predict and Recommend movies based on IMDb and Rotten Tomatoes scores.')
 
-# --- Function to Download and Extract 3-Part Datasets ---
+# --- Download Data from Google Drive ---
 @st.cache_resource
-def download_and_extract_data():
-    zip_files = {
-        "datasets_part1.zip": "1K3xGUjZcllFSMz3Y85HDS3tyrqE6gPzJ",
-        "datasets_part2.zip": "1TJj-NcqY-rA4D78x4pHTiPnVKDSBlNrq",
-        "datasets_part3.zip": "1nz2RjBMNigex-ojPry_SuO2zcepV_ImY",
+def download_data():
+    files = {
+        "Project_3_data.csv": "1oOwysFn83UOPg46TcGnvisWFJvAlgAmA",
+        "title.basics.tsv": "1oy7Q7HzhD5HsWvJhWkBvxWWtXF6AHbZp",
+        "title.ratings.tsv": "1kQ0KfL0XfFkgmmDiTXbBXMFWDokQCmnD",
+        "title.crew.tsv": "1QKdJxZVIg_KRx6Rd8Bi63bQk1Y48wM6q",
+        "name.basics.tsv": "1iAsW1ZPYYQpxVYq2_2cCQWQn8SVGRr_C",
+        "movie_info.csv": "13fvosTfqx-atwdHvOhfdE3d3ypPsAd2w"
     }
 
-    key_files = {
-        "datasets_part1.zip": "Project 3_data.csv",
-        "datasets_part2.zip": "title.basics.tsv",
-        "datasets_part3.zip": "name.basics.tsv",
-    }
+    for filename, file_id in files.items():
+        if not os.path.exists(filename):
+            url = f"https://drive.google.com/uc?id={file_id}"
+            gdown.download(url, filename, quiet=False)
 
-    for zip_name, file_id in zip_files.items():
-        check_file = key_files[zip_name]
-        if not os.path.exists(check_file):
-            st.write(f"🔽 Downloading {zip_name}...")
-            gdown.download(f"https://drive.google.com/uc?id={file_id}", zip_name, quiet=False)
+download_data()
 
-            st.write(f"📦 Extracting {zip_name}...")
-            with zipfile.ZipFile(zip_name, 'r') as zip_ref:
-                for member in zip_ref.namelist():
-                    filename = os.path.basename(member)
-                    if not filename:
-                        continue
-                    with zip_ref.open(member) as source, open(filename, "wb") as target:
-                        target.write(source.read())
-
-            os.remove(zip_name)
-
-    extracted = os.listdir('.')
-    st.write("📄 Extracted files in directory:")
-    st.write(extracted)
-
-    required_files = [
-        "Project 3_data.csv", "movie_info.csv",
-        "title.basics.tsv", "title.ratings.tsv",
-        "title.crew.tsv", "name.basics.tsv"
-    ]
-    for file in required_files:
-        if file not in extracted:
-            st.error(f"❌ Missing file after extraction: {file}")
-            st.stop()
-
-download_and_extract_data()
-
-# --- Caching Data Load and Model Training ---
+# --- Load and Train Models ---
 @st.cache_data
 def load_and_train_models():
-    project_df = pd.read_csv("Project 3_data.csv")
-    title_basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", low_memory=False)
-    title_ratings = pd.read_csv("title.ratings.tsv", sep="\t", na_values="\\N", low_memory=False)
-    title_crew = pd.read_csv("title.crew.tsv", sep="\t", na_values="\\N")
-    name_basics = pd.read_csv("name.basics.tsv", sep="\t", na_values="\\N")
+    project_df = pd.read_csv("Project_3_data.csv", nrows=10000)
+    title_basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=10000)
+    title_ratings = pd.read_csv("title.ratings.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=10000)
+    title_crew = pd.read_csv("title.crew.tsv", sep="\t", na_values="\\N", nrows=10000)
+    name_basics = pd.read_csv("name.basics.tsv", sep="\t", na_values="\\N", nrows=10000)
+    df_info = pd.read_csv("movie_info.csv", nrows=10000)
 
     project_df.rename(columns={'title': 'primaryTitle'}, inplace=True)
     df_imdb = pd.merge(project_df, title_basics[['tconst', 'primaryTitle']], on='primaryTitle', how='left')
@@ -87,7 +59,6 @@ def load_and_train_models():
     imdb_preds = ridge_model_imdb.predict(X_encoded_imdb)
     imdb_threshold = np.median(imdb_preds)
 
-    df_info = pd.read_csv("movie_info.csv")
     df_info['audience_score'] = df_info['audience_score'].str.rstrip('%').astype(float)
     df_info['critic_score'] = df_info['critic_score'].str.rstrip('%').astype(float)
     project_df['title'] = project_df['primaryTitle'].str.strip().str.lower()
@@ -120,7 +91,7 @@ def load_and_train_models():
     ratings = title_ratings.astype(str)
     crew = title_crew.astype(str)
     names = name_basics.astype(str)
-    project3 = pd.read_csv("Project 3_data.csv")[['primaryTitle', 'country']]
+    project3 = pd.read_csv("Project_3_data.csv", usecols=['primaryTitle', 'country'], nrows=10000)
     project3['primaryTitle'] = project3['primaryTitle'].str.strip().str.lower()
 
     movies = basics[basics['titleType'] == 'movie'].copy()
@@ -133,7 +104,7 @@ def load_and_train_models():
     df_imdb_log['directors'] = df_imdb_log['directors'].apply(lambda x: x.split(',')[0])
     id_to_name = dict(zip(names['nconst'], names['primaryName']))
     df_imdb_log['director_name'] = df_imdb_log['directors'].map(id_to_name)
-    df_imdb_log = df_imdb_log.merge(project3, left_on='primaryTitle', right_on='primaryTitle', how='left')
+    df_imdb_log = df_imdb_log.merge(project3, on='primaryTitle', how='left')
     df_imdb_log.dropna(subset=['country', 'director_name'], inplace=True)
 
     features_imdb_log = df_imdb_log[['country', 'director_name', 'genres']]
@@ -149,17 +120,11 @@ def load_and_train_models():
             logistic_model_rt, encoder_rt_logistic,
             logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns)
 
-# --- Load Models with Exception Display ---
-try:
-    st.write("🔍 Starting model loading...")
-    (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge,
-     audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, cols_rt_linear,
-     logistic_model_rt, encoder_rt_logistic,
-     logistic_model_imdb, encoder_imdb_log, cols_imdb_logistic) = load_and_train_models()
-    st.success("✅ Models loaded successfully.")
-except Exception as e:
-    st.error(f"🚨 Streamlit app crashed during model loading:\n\n{type(e).__name__}: {e}")
-    st.stop()
+# --- Load All Models ---
+(ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge,
+ audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, cols_rt_linear,
+ logistic_model_rt, encoder_rt_logistic,
+ logistic_model_imdb, encoder_imdb_log, cols_imdb_logistic) = load_and_train_models()
 
 # --- User Input ---
 st.header("Enter Movie Details:")
@@ -209,6 +174,7 @@ if st.button('Predict'):
             })
 
             st.subheader("Prediction Results (Grouped by Model)")
+
             for model in ['Linear', 'Logistic']:
                 st.markdown(f"### {model} Model")
                 filtered = base_results_df[base_results_df['Model'] == model].reset_index(drop=True)
@@ -220,6 +186,5 @@ if st.button('Predict'):
             csv = base_results_df.rename(columns={'Prediction': 'Prediction Value'}).to_csv(index=False)
             st.download_button("Download Results as CSV", data=csv, file_name="recommendation_results.csv", mime="text/csv")
 
-# --- Footer ---
 st.markdown("---")
 st.markdown("Developed by Keerthi and Sowfia")
