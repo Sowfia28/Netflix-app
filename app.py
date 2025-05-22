@@ -6,6 +6,7 @@ from sklearn.linear_model import Ridge, LinearRegression, LogisticRegression
 from sklearn.model_selection import train_test_split
 import os
 import gdown
+import gc  # Garbage collector
 
 # --- Page Setup ---
 st.set_page_config(page_title="NextFlix", layout="centered")
@@ -34,6 +35,8 @@ download_data()
 # --- Load and Train Models ---
 @st.cache_data
 def load_and_train_models():
+    gc.enable()  # Ensure garbage collection is on
+
     project_df = pd.read_csv("Project_3_data.csv")
     project_df.rename(columns={'title': 'primaryTitle'}, inplace=True)
     project_df['primaryTitle'] = project_df['primaryTitle'].str.strip().str.lower()
