@@ -41,12 +41,21 @@ def load_and_train_models():
     title_basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=10000)
     title_basics['primaryTitle'] = title_basics['primaryTitle'].str.strip().str.lower()
 
+    # Debug output to verify title alignment
+    st.markdown("### 🔎 Debug Preview of Titles")
+    st.write("Project DataFrame Titles:", project_df['primaryTitle'].dropna().unique()[:5])
+    st.write("Title Basics Titles:", title_basics['primaryTitle'].dropna().unique()[:5])
+
     title_ratings = pd.read_csv("title.ratings.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=10000)
     title_crew = pd.read_csv("title.crew.tsv", sep="\t", na_values="\\N", nrows=10000)
     name_basics = pd.read_csv("name.basics.tsv", sep="\t", na_values="\\N", nrows=10000)
     df_info = pd.read_csv("movie_info.csv", nrows=10000)
 
     df_imdb = pd.merge(project_df, title_basics[['tconst', 'primaryTitle']], on='primaryTitle', how='left')
+    if df_imdb['tconst'].isnull().all():
+        st.error("❌ No matches found between project_df and title_basics on 'primaryTitle'. Check formatting.")
+        st.stop()
+
     df_imdb = pd.merge(df_imdb, title_ratings[['tconst', 'averageRating']], on='tconst', how='left')
     df_imdb = pd.merge(df_imdb, title_crew[['tconst', 'directors']], on='tconst', how='left')
     df_imdb['director_id'] = df_imdb['directors'].str.split(',').str[0]
@@ -56,7 +65,7 @@ def load_and_train_models():
     df_imdb = df_imdb.drop_duplicates(subset=['primaryTitle'])
 
     if df_imdb.empty:
-        st.error("IMDB DataFrame is empty after merging. Please check the title alignment and data source.")
+        st.error("❌ df_imdb is empty after merging all IMDb data. Check input formats or dataset integrity.")
         st.stop()
 
     X_raw_imdb = df_imdb[['country', 'director', 'listed_in']]
