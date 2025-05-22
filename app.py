@@ -39,6 +39,8 @@ def load_and_train_models():
     project_df['primaryTitle'] = project_df['primaryTitle'].str.strip().str.lower()
 
     title_basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=10000)
+    title_basics['primaryTitle'] = title_basics['primaryTitle'].str.strip().str.lower()
+
     title_ratings = pd.read_csv("title.ratings.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=10000)
     title_crew = pd.read_csv("title.crew.tsv", sep="\t", na_values="\\N", nrows=10000)
     name_basics = pd.read_csv("name.basics.tsv", sep="\t", na_values="\\N", nrows=10000)
@@ -53,6 +55,10 @@ def load_and_train_models():
     df_imdb.dropna(subset=['country', 'listed_in', 'averageRating', 'director'], inplace=True)
     df_imdb = df_imdb.drop_duplicates(subset=['primaryTitle'])
 
+    if df_imdb.empty:
+        st.error("IMDB DataFrame is empty after merging. Please check the title alignment and data source.")
+        st.stop()
+
     X_raw_imdb = df_imdb[['country', 'director', 'listed_in']]
     y_imdb = df_imdb['averageRating']
     encoder_imdb_ridge = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
@@ -60,7 +66,6 @@ def load_and_train_models():
     ridge_model_imdb = Ridge(alpha=1.0).fit(X_encoded_imdb, y_imdb)
     imdb_threshold = np.median(ridge_model_imdb.predict(X_encoded_imdb))
 
-    # Standardize title columns for merging
     df_info['audience_score'] = df_info['audience_score'].str.rstrip('%').astype(float)
     df_info['critic_score'] = df_info['critic_score'].str.rstrip('%').astype(float)
     df_info['title'] = df_info['title'].str.strip().str.lower()
