@@ -35,13 +35,15 @@ download_data()
 @st.cache_data
 def load_and_train_models():
     project_df = pd.read_csv("Project_3_data.csv", nrows=10000)
+    project_df.rename(columns={'title': 'primaryTitle'}, inplace=True)
+    project_df['primaryTitle'] = project_df['primaryTitle'].str.strip().str.lower()
+
     title_basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=10000)
     title_ratings = pd.read_csv("title.ratings.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=10000)
     title_crew = pd.read_csv("title.crew.tsv", sep="\t", na_values="\\N", nrows=10000)
     name_basics = pd.read_csv("name.basics.tsv", sep="\t", na_values="\\N", nrows=10000)
     df_info = pd.read_csv("movie_info.csv", nrows=10000)
 
-    project_df.rename(columns={'title': 'primaryTitle'}, inplace=True)
     df_imdb = pd.merge(project_df, title_basics[['tconst', 'primaryTitle']], on='primaryTitle', how='left')
     df_imdb = pd.merge(df_imdb, title_ratings[['tconst', 'averageRating']], on='tconst', how='left')
     df_imdb = pd.merge(df_imdb, title_crew[['tconst', 'directors']], on='tconst', how='left')
@@ -56,12 +58,10 @@ def load_and_train_models():
     encoder_imdb_ridge = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
     X_encoded_imdb = encoder_imdb_ridge.fit_transform(X_raw_imdb)
     ridge_model_imdb = Ridge(alpha=1.0).fit(X_encoded_imdb, y_imdb)
-    imdb_preds = ridge_model_imdb.predict(X_encoded_imdb)
-    imdb_threshold = np.median(imdb_preds)
+    imdb_threshold = np.median(ridge_model_imdb.predict(X_encoded_imdb))
 
     df_info['audience_score'] = df_info['audience_score'].str.rstrip('%').astype(float)
     df_info['critic_score'] = df_info['critic_score'].str.rstrip('%').astype(float)
-    project_df['title'] = project_df['primaryTitle'].str.strip().str.lower()
     df_info['title'] = df_info['title'].str.strip().str.lower()
     combined_rt = pd.merge(project_df, df_info[['title', 'audience_score', 'critic_score']], on='title', how='inner')
     combined_rt.dropna(subset=['country', 'director', 'listed_in', 'audience_score', 'critic_score'], inplace=True)
@@ -91,8 +91,7 @@ def load_and_train_models():
     ratings = title_ratings.astype(str)
     crew = title_crew.astype(str)
     names = name_basics.astype(str)
-    project3 = pd.read_csv("Project_3_data.csv", usecols=['primaryTitle', 'country'], nrows=10000)
-    project3['primaryTitle'] = project3['primaryTitle'].str.strip().str.lower()
+    project3 = project_df[['primaryTitle', 'country']].copy()
 
     movies = basics[basics['titleType'] == 'movie'].copy()
     movies['primaryTitle'] = movies['primaryTitle'].str.strip().str.lower()
@@ -174,7 +173,6 @@ if st.button('Predict'):
             })
 
             st.subheader("Prediction Results (Grouped by Model)")
-
             for model in ['Linear', 'Logistic']:
                 st.markdown(f"### {model} Model")
                 filtered = base_results_df[base_results_df['Model'] == model].reset_index(drop=True)
