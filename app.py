@@ -34,21 +34,21 @@ download_data()
 # --- Load and Train Models ---
 @st.cache_data
 def load_and_train_models():
-    project_df = pd.read_csv("Project_3_data.csv", nrows=10000)
+    project_df = pd.read_csv("Project_3_data.csv", nrows=50000)
     project_df.rename(columns={'title': 'primaryTitle'}, inplace=True)
     project_df['primaryTitle'] = project_df['primaryTitle'].str.strip().str.lower()
 
-    title_basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=10000)
+    title_basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=50000)
     title_basics['primaryTitle'] = title_basics['primaryTitle'].str.strip().str.lower()
 
     st.markdown("### 🔎 Debug Preview of Titles")
     st.write("Project DataFrame Titles:", project_df['primaryTitle'].dropna().unique()[:5])
     st.write("Title Basics Titles:", title_basics['primaryTitle'].dropna().unique()[:5])
 
-    title_ratings = pd.read_csv("title.ratings.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=10000)
-    title_crew = pd.read_csv("title.crew.tsv", sep="\t", na_values="\\N", nrows=10000)
-    name_basics = pd.read_csv("name.basics.tsv", sep="\t", na_values="\\N", nrows=10000)
-    df_info = pd.read_csv("movie_info.csv", nrows=10000)
+    title_ratings = pd.read_csv("title.ratings.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=50000)
+    title_crew = pd.read_csv("title.crew.tsv", sep="\t", na_values="\\N", nrows=50000)
+    name_basics = pd.read_csv("name.basics.tsv", sep="\t", na_values="\\N", nrows=50000)
+    df_info = pd.read_csv("movie_info.csv", nrows=50000)
 
     df_imdb = pd.merge(project_df, title_basics[['tconst', 'primaryTitle']], on='primaryTitle', how='left')
     if df_imdb['tconst'].isnull().all():
