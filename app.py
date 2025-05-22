@@ -125,10 +125,12 @@ def load_and_train_models():
         X_train_imdb, _, y_train_imdb, _ = train_test_split(X_encoded_imdb_log, target_imdb_log, test_size=0.2, random_state=42)
         logistic_model_imdb = LogisticRegression(max_iter=1000).fit(X_train_imdb, y_train_imdb)
 
-    return (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, X_raw_imdb.columns,
-            audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, X_raw_rt.columns,
-            logistic_model_rt, encoder_rt_logistic,
-            logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns)
+    return (
+        ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, X_raw_imdb.columns,
+        audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, X_raw_rt.columns,
+        logistic_model_rt, encoder_rt_logistic,
+        logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns
+    )
 
 # --- Load All Models ---
 (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge,
