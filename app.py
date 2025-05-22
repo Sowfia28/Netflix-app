@@ -23,7 +23,6 @@ def download_data():
         "name.basics.tsv": "1iAsW1ZPYYQpxVYq2_2cCQWQn8SVGRr_C",
         "movie_info.csv": "13fvosTfqx-atwdHvOhfdE3d3ypPsAd2w"
     }
-
     for filename, file_id in files.items():
         if not os.path.exists(filename):
             url = f"https://drive.google.com/uc?id={file_id}"
@@ -34,16 +33,19 @@ download_data()
 # --- Load and Train Models ---
 @st.cache_data
 def load_and_train_models():
+    # Load Data
     project_df = pd.read_csv("Project_3_data.csv", nrows=10000)
     project_df.rename(columns={'title': 'primaryTitle'}, inplace=True)
     project_df['primaryTitle'] = project_df['primaryTitle'].str.strip().str.lower()
 
-    title_basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=10000)
-    title_ratings = pd.read_csv("title.ratings.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=10000)
+    title_basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", nrows=10000)
+    title_ratings = pd.read_csv("title.ratings.tsv", sep="\t", na_values="\\N", nrows=10000)
     title_crew = pd.read_csv("title.crew.tsv", sep="\t", na_values="\\N", nrows=10000)
     name_basics = pd.read_csv("name.basics.tsv", sep="\t", na_values="\\N", nrows=10000)
     df_info = pd.read_csv("movie_info.csv", nrows=10000)
 
+    # --- IMDb Linear Model ---
+    title_basics['primaryTitle'] = title_basics['primaryTitle'].str.strip().str.lower()
     df_imdb = pd.merge(project_df, title_basics[['tconst', 'primaryTitle']], on='primaryTitle', how='left')
     df_imdb = pd.merge(df_imdb, title_ratings[['tconst', 'averageRating']], on='tconst', how='left')
     df_imdb = pd.merge(df_imdb, title_crew[['tconst', 'directors']], on='tconst', how='left')
@@ -51,7 +53,7 @@ def load_and_train_models():
     df_imdb = pd.merge(df_imdb, name_basics[['nconst', 'primaryName']], left_on='director_id', right_on='nconst', how='left')
     df_imdb.rename(columns={'primaryName': 'director'}, inplace=True)
     df_imdb.dropna(subset=['country', 'listed_in', 'averageRating', 'director'], inplace=True)
-    df_imdb = df_imdb.drop_duplicates(subset=['primaryTitle'])
+    df_imdb.drop_duplicates(subset=['primaryTitle'], inplace=True)
 
     X_raw_imdb = df_imdb[['country', 'director', 'listed_in']]
     y_imdb = df_imdb['averageRating']
@@ -60,12 +62,13 @@ def load_and_train_models():
     ridge_model_imdb = Ridge(alpha=1.0).fit(X_encoded_imdb, y_imdb)
     imdb_threshold = np.median(ridge_model_imdb.predict(X_encoded_imdb))
 
+    # --- Rotten Tomatoes Linear & Logistic Models ---
     df_info['audience_score'] = df_info['audience_score'].str.rstrip('%').astype(float)
     df_info['critic_score'] = df_info['critic_score'].str.rstrip('%').astype(float)
     df_info['title'] = df_info['title'].str.strip().str.lower()
     combined_rt = pd.merge(project_df, df_info[['title', 'audience_score', 'critic_score']], on='title', how='inner')
     combined_rt.dropna(subset=['country', 'director', 'listed_in', 'audience_score', 'critic_score'], inplace=True)
-    combined_rt = combined_rt.drop_duplicates(subset=['title'])
+    combined_rt.drop_duplicates(subset=['title'], inplace=True)
 
     X_raw_rt = combined_rt[['country', 'director', 'listed_in']]
     y_rt = combined_rt[['audience_score', 'critic_score']]
@@ -87,11 +90,12 @@ def load_and_train_models():
     X_train_rt, _, y_train_rt, _ = train_test_split(X_encoded_log_rt, y_log_rt, test_size=0.2, random_state=42)
     logistic_model_rt = LogisticRegression(max_iter=1000).fit(X_train_rt, y_train_rt)
 
+    # --- IMDb Logistic Model ---
     basics = title_basics.astype(str)
     ratings = title_ratings.astype(str)
     crew = title_crew.astype(str)
     names = name_basics.astype(str)
-    project3 = project_df[['primaryTitle', 'country']].copy()
+    project3 = project_df[['primaryTitle', 'country']]
 
     movies = basics[basics['titleType'] == 'movie'].copy()
     movies['primaryTitle'] = movies['primaryTitle'].str.strip().str.lower()
@@ -119,7 +123,7 @@ def load_and_train_models():
             logistic_model_rt, encoder_rt_logistic,
             logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns)
 
-# --- Load All Models ---
+# --- Load Models ---
 (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge,
  audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, cols_rt_linear,
  logistic_model_rt, encoder_rt_logistic,
@@ -131,7 +135,7 @@ country = st.text_input('Country', help="Example: United States")
 director = st.text_input('Director', help="Example: Christopher Nolan")
 genre = st.text_input('Genre', help="Example: Drama")
 
-# --- Predict Button ---
+# --- Prediction ---
 if st.button('Predict'):
     if not all([country.strip(), director.strip(), genre.strip()]):
         st.error('Please fill out all fields!')
