@@ -41,7 +41,6 @@ def load_and_train_models():
     title_basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=10000)
     title_basics['primaryTitle'] = title_basics['primaryTitle'].str.strip().str.lower()
 
-    # Debug output to verify title alignment
     st.markdown("### 🔎 Debug Preview of Titles")
     st.write("Project DataFrame Titles:", project_df['primaryTitle'].dropna().unique()[:5])
     st.write("Title Basics Titles:", title_basics['primaryTitle'].dropna().unique()[:5])
@@ -127,10 +126,16 @@ def load_and_train_models():
     features_imdb_log = df_imdb_log[['country', 'director_name', 'genres']]
     features_imdb_log.columns = ['country', 'director', 'listed_in']
     target_imdb_log = df_imdb_log['recommend']
-    encoder_imdb_log = OneHotEncoder(handle_unknown='ignore')
-    X_encoded_imdb_log = encoder_imdb_log.fit_transform(features_imdb_log)
-    X_train_imdb, _, y_train_imdb, _ = train_test_split(X_encoded_imdb_log, target_imdb_log, test_size=0.2, random_state=42)
-    logistic_model_imdb = LogisticRegression(max_iter=1000).fit(X_train_imdb, y_train_imdb)
+
+    if len(target_imdb_log.unique()) < 2:
+        st.warning("⚠️ IMDb logistic model skipped: only one class found in data. Cannot train model.")
+        logistic_model_imdb = None
+        encoder_imdb_log = None
+    else:
+        encoder_imdb_log = OneHotEncoder(handle_unknown='ignore')
+        X_encoded_imdb_log = encoder_imdb_log.fit_transform(features_imdb_log)
+        X_train_imdb, _, y_train_imdb, _ = train_test_split(X_encoded_imdb_log, target_imdb_log, test_size=0.2, random_state=42)
+        logistic_model_imdb = LogisticRegression(max_iter=1000).fit(X_train_imdb, y_train_imdb)
 
     return (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, X_raw_imdb.columns,
             audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, X_raw_rt.columns,
@@ -168,9 +173,13 @@ if st.button('Predict'):
             rt_log_pred = logistic_model_rt.predict(rt_log_input)[0]
             rt_log_conf = logistic_model_rt.predict_proba(rt_log_input)[0][1]
 
-            imdb_log_input = encoder_imdb_log.transform(input_df[cols_imdb_logistic])
-            imdb_log_pred = logistic_model_imdb.predict(imdb_log_input)[0]
-            imdb_log_conf = logistic_model_imdb.predict_proba(imdb_log_input)[0][1]
+            if logistic_model_imdb is not None:
+                imdb_log_input = encoder_imdb_log.transform(input_df[cols_imdb_logistic])
+                imdb_log_pred = logistic_model_imdb.predict(imdb_log_input)[0]
+                imdb_log_conf = logistic_model_imdb.predict_proba(imdb_log_input)[0][1]
+            else:
+                imdb_log_pred = 0
+                imdb_log_conf = 0.0
 
             base_results_df = pd.DataFrame({
                 'S.No': [1, 2, 3, 4],
