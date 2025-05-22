@@ -60,14 +60,14 @@ def load_and_train_models():
     ridge_model_imdb = Ridge(alpha=1.0).fit(X_encoded_imdb, y_imdb)
     imdb_threshold = np.median(ridge_model_imdb.predict(X_encoded_imdb))
 
+    # Standardize title columns for merging
     df_info['audience_score'] = df_info['audience_score'].str.rstrip('%').astype(float)
     df_info['critic_score'] = df_info['critic_score'].str.rstrip('%').astype(float)
     df_info['title'] = df_info['title'].str.strip().str.lower()
+    project_df['title_lower'] = project_df['primaryTitle'].str.strip().str.lower()
 
-    # Fix: Add lowercase 'title' column for merge
-    project_df['title'] = project_df['primaryTitle'].str.strip().str.lower()
-
-    combined_rt = pd.merge(project_df, df_info[['title', 'audience_score', 'critic_score']], on='title', how='inner')
+    combined_rt = pd.merge(project_df, df_info[['title', 'audience_score', 'critic_score']], 
+                           left_on='title_lower', right_on='title', how='inner')
     combined_rt.dropna(subset=['country', 'director', 'listed_in', 'audience_score', 'critic_score'], inplace=True)
     combined_rt = combined_rt.drop_duplicates(subset=['title'])
 
