@@ -289,9 +289,9 @@ def load_and_train_models():
 
 st.header("Enter Movie Details:")
 
-valid_countries = sorted(df_imdb['country'].dropna().astype(str).unique().tolist())
-valid_directors = sorted(df_imdb['director'].dropna().astype(str).unique().tolist())
-valid_genres = sorted(df_imdb['listed_in'].dropna().astype(str).unique().tolist())
+valid_countries = sorted(df_imdb['country'].values.ravel())
+valid_directors = sorted(df_imdb['director'].values.ravel())
+valid_genres = sorted(df_imdb['listed_in'].values.ravel())
 
 country = st.selectbox('Country', valid_countries)
 director = st.selectbox('Director', valid_directors)
