@@ -33,7 +33,7 @@ st.markdown("""
     .stButton button:hover, .stDownloadButton button:hover {
         background-color: #b20710;
     }
-    .stTextInput>div>div>input {
+    .stTextInput>div>div>input, .stSelectbox>div>div>div>input {
         background-color: #333333;
         color: white;
         border-radius: 4px;
@@ -47,6 +47,21 @@ st.markdown("""
 st.image("https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg", width=150)
 st.title('🎬 NextFlix')
 st.markdown('### Predict and Recommend movies based on IMDb and Rotten Tomatoes scores.')
+
+# Background Image
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background-image: url("https://wallpaperaccess.com/full/2703652.png");
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # --- Download Data ---
 @st.cache_resource
