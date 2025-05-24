@@ -293,128 +293,85 @@ def load_and_train_models():
 
 st.header("Enter Movie Details:") 
 
-country = st.text_input('Country', help="Example: United States") 
+valid_countries = sorted(df_imdb['country'].dropna().unique())
+valid_directors = sorted(df_imdb['director'].dropna().unique())
+valid_genres = sorted(df_imdb['listed_in'].dropna().unique())
 
-director = st.text_input('Director', help="Example: Christopher Nolan") 
-
-genre = st.text_input('Genre', help="Example: Drama") 
-
- 
-
-# --- Predict Button --- 
-
-if st.button('Predict'): 
-
-    if not all([country.strip(), director.strip(), genre.strip()]): 
-
-        st.error('Please fill out all fields!') 
-
-    else: 
-
-        with st.spinner('Predicting...'): 
-
-            input_df = pd.DataFrame([[country, director, genre]], columns=['country', 'director', 'listed_in']) 
+country = st.selectbox('Country', valid_countries)
+director = st.selectbox('Director', valid_directors)
+genre = st.selectbox('Genre', valid_genres)
 
  
 
-            imdb_input = encoder_imdb_ridge.transform(input_df[cols_imdb_ridge]) 
+# --- Predict Button ---
+if st.button('Predict'):
 
-            imdb_pred = ridge_model_imdb.predict(imdb_input)[0] 
+    if not all([country.strip(), director.strip(), genre.strip()]):
+        st.error('Please fill out all fields!')
 
- 
+    else:
+        with st.spinner('Predicting...'):
 
-            rt_input = encoder_rt_linear.transform(input_df[cols_rt_linear]) 
+            input_df = pd.DataFrame([[country, director, genre]], columns=['country', 'director', 'listed_in'])
 
-            audience_pred = audience_model_rt.predict(rt_input)[0] 
+            # IMDb Linear Prediction
+            imdb_input = encoder_imdb_ridge.transform(input_df[cols_imdb_ridge])
 
-            critic_pred = critic_model_rt.predict(rt_input)[0] 
+            if imdb_input.sum() == 0:
+                st.warning("⚠️ Input combination not recognized by the IMDb model. Prediction may not be reliable.")
 
- 
+            imdb_pred = ridge_model_imdb.predict(imdb_input)[0]
 
-            rt_log_input = encoder_rt_logistic.transform(input_df[cols_rt_linear]) 
+            # Rotten Tomatoes Linear Prediction
+            rt_input = encoder_rt_linear.transform(input_df[cols_rt_linear])
+            audience_pred = audience_model_rt.predict(rt_input)[0]
+            critic_pred = critic_model_rt.predict(rt_input)[0]
 
-            rt_log_pred = logistic_model_rt.predict(rt_log_input)[0] 
+            # Rotten Tomatoes Logistic Prediction
+            rt_log_input = encoder_rt_logistic.transform(input_df[cols_rt_linear])
+            rt_log_pred = logistic_model_rt.predict(rt_log_input)[0]
+            rt_log_conf = logistic_model_rt.predict_proba(rt_log_input)[0][1]
 
-            rt_log_conf = logistic_model_rt.predict_proba(rt_log_input)[0][1] 
+            # IMDb Logistic Prediction
+            if logistic_model_imdb is not None:
+                imdb_log_input = encoder_imdb_log.transform(input_df[cols_imdb_logistic])
+                imdb_log_pred = logistic_model_imdb.predict(imdb_log_input)[0]
+                imdb_log_conf = logistic_model_imdb.predict_proba(imdb_log_input)[0][1]
+            else:
+                imdb_log_pred = 0
+                imdb_log_conf = 0.0
 
- 
+            # Results Table
+            base_results_df = pd.DataFrame({
+                'S.No': [1, 2, 3, 4],
+                'Model': ['Linear', 'Linear', 'Logistic', 'Logistic'],
+                'Dataset Used': ['IMDb', 'Rotten Tomatoes', 'IMDb', 'Rotten Tomatoes'],
+                'Prediction': [
+                    f"{imdb_pred:.2f}",
+                    f"Audience: {audience_pred:.2f}, Critic: {critic_pred:.2f}",
+                    f"{imdb_log_conf:.2%}",
+                    f"{rt_log_conf:.2%}"
+                ],
+                'Recommendation': [
+                    "✅ Yes" if imdb_pred >= imdb_threshold else "❌ No",
+                    "✅ Yes" if (audience_pred >= audience_threshold and critic_pred >= critic_threshold) else "❌ No",
+                    "✅ Yes" if imdb_log_pred else "❌ No",
+                    "✅ Yes" if rt_log_pred else "❌ No"
+                ]
+            })
 
-            if logistic_model_imdb is not None: 
+            st.subheader("Prediction Results (Grouped by Model)")
 
-                imdb_log_input = encoder_imdb_log.transform(input_df[cols_imdb_logistic]) 
+            for model in ['Linear', 'Logistic']:
+                st.markdown(f"### {model} Model")
+                filtered = base_results_df[base_results_df['Model'] == model].reset_index(drop=True)
+                filtered = filtered.rename(columns={
+                    'Prediction': 'Predicted Ratings/Scores' if model == 'Linear' else 'Predicted Confidence Score'
+                })
+                st.dataframe(filtered, use_container_width=True, hide_index=True)
 
-                imdb_log_pred = logistic_model_imdb.predict(imdb_log_input)[0] 
+            csv = base_results_df.rename(columns={'Prediction': 'Prediction Value'}).to_csv(index=False)
+            st.download_button("Download Results as CSV", data=csv, file_name="recommendation_results.csv", mime="text/csv")
 
-                imdb_log_conf = logistic_model_imdb.predict_proba(imdb_log_input)[0][1] 
-
-            else: 
-
-                imdb_log_pred = 0 
-
-                imdb_log_conf = 0.0 
-
- 
-
-            base_results_df = pd.DataFrame({ 
-
-                'S.No': [1, 2, 3, 4], 
-
-                'Model': ['Linear', 'Linear', 'Logistic', 'Logistic'], 
-
-                'Dataset Used': ['IMDb', 'Rotten Tomatoes', 'IMDb', 'Rotten Tomatoes'], 
-
-                'Prediction': [ 
-
-                    f"{imdb_pred:.2f}", 
-
-                    f"Audience: {audience_pred:.2f}, Critic: {critic_pred:.2f}", 
-
-                    f"{imdb_log_conf:.2%}", 
-
-                    f"{rt_log_conf:.2%}" 
-
-                ], 
-
-                'Recommendation': [ 
-
-                    "✅ Yes" if imdb_pred >= imdb_threshold else "❌ No", 
-
-                    "✅ Yes" if (audience_pred >= audience_threshold and critic_pred >= critic_threshold) else "❌ No", 
-
-                    "✅ Yes" if imdb_log_pred else "❌ No", 
-
-                    "✅ Yes" if rt_log_pred else "❌ No" 
-
-                ] 
-
-            }) 
-
- 
-
-            st.subheader("Prediction Results (Grouped by Model)") 
-
-            for model in ['Linear', 'Logistic']: 
-
-                st.markdown(f"### {model} Model") 
-
-                filtered = base_results_df[base_results_df['Model'] == model].reset_index(drop=True) 
-
-                filtered = filtered.rename(columns={ 
-
-                    'Prediction': 'Predicted Ratings/Scores' if model == 'Linear' else 'Predicted Confidence Score' 
-
-                }) 
-
-                st.dataframe(filtered, use_container_width=True, hide_index=True) 
-
- 
-
-            csv = base_results_df.rename(columns={'Prediction': 'Prediction Value'}).to_csv(index=False) 
-
-            st.download_button("Download Results as CSV", data=csv, file_name="recommendation_results.csv", mime="text/csv") 
-
- 
-
-st.markdown("---") 
-
-st.markdown("Developed by Keerthi and Sowfia") 
+st.markdown("---")
+st.markdown("Developed by Keerthi and Sowfia")
