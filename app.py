@@ -8,26 +8,45 @@ import os
 import gdown
 
 # --- Page Setup ---
-st.set_page_config(page_title="NextFlix", layout="centered")
+st.set_page_config(page_title="NextFlix", layout="wide")
 st.markdown("""
     <style>
-    .main {
+    body {
         background-color: #141414;
         color: white;
+        font-family: 'Helvetica Neue', sans-serif;
     }
-    .stButton button {
+    .main {
+        background-color: #141414;
+        padding: 2rem;
+        color: white;
+    }
+    .stButton button, .stDownloadButton button {
         background-color: #e50914;
         color: white;
         font-weight: bold;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 20px;
+        font-size: 16px;
     }
-    .stDownloadButton button {
-        background-color: #e50914;
+    .stButton button:hover, .stDownloadButton button:hover {
+        background-color: #b20710;
+    }
+    .stTextInput>div>div>input {
+        background-color: #333333;
         color: white;
+        border-radius: 4px;
+    }
+    .block-container {
+        padding-top: 2rem;
     }
     </style>
 """, unsafe_allow_html=True)
+
+st.image("https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg", width=150)
 st.title('🎬 NextFlix')
-st.markdown('Predict and Recommend movies based on IMDb and Rotten Tomatoes scores.')
+st.markdown('### Predict and Recommend movies based on IMDb and Rotten Tomatoes scores.')
 
 # --- Download Data ---
 @st.cache_resource
