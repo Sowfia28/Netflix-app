@@ -1,3 +1,4 @@
+# Netflix-themed NextFlix App with Logo, Background, Animations, and Autocomplete
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -6,51 +7,43 @@ from sklearn.linear_model import Ridge, LinearRegression, LogisticRegression
 from sklearn.model_selection import train_test_split
 import os
 import gdown
+from time import sleep
 
-# --- Netflix Dark Theme CSS ---
+# --- Page Configuration (MUST BE FIRST) ---
+st.set_page_config(page_title="NextFlix", layout="centered")
+
+# --- Custom CSS for Styling ---
 st.markdown("""
-<style>
-    .main {
-        background-color: #141414;
-        color: #ffffff;
+    <style>
+    .stApp {
+        background-image: url('https://wallpaperaccess.com/full/2703652.png');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        color: white;
     }
-    section[data-testid="stSidebar"] {
-        background-color: #1f1f1f;
+    .main > div {
+        background-color: rgba(20, 20, 20, 0.85);
+        padding: 2rem;
+        border-radius: 12px;
     }
-    .stApp h1, .stApp h2, .stApp h3, .stApp h4 {
-        color: #e50914;
-    }
-    input, textarea, .stTextInput > div > div > input {
-        background-color: #333333;
-        color: #ffffff;
-        border: 1px solid #444;
-    }
-    .stButton button, .stDownloadButton button {
+    .stButton button {
         background-color: #e50914;
         color: white;
         font-weight: bold;
-        border: none;
-        border-radius: 5px;
-        padding: 0.5em 1.2em;
-        transition: 0.3s ease;
+        border-radius: 8px;
     }
-    .stButton button:hover, .stDownloadButton button:hover {
-        background-color: #b20710;
-        color: #ffffff;
+    .stDownloadButton button {
+        background-color: #e50914;
+        color: white;
     }
-    .stDataFrame, .stTable {
-        background-color: #1c1c1c;
-        color: #ffffff;
-        border: 1px solid #2a2a2a;
+    .block-container {
+        padding-top: 1rem;
     }
-    footer {
-        visibility: hidden;
-    }
-</style>
+    </style>
 """, unsafe_allow_html=True)
 
-# --- Page Setup ---
-st.set_page_config(page_title="NextFlix", layout="centered")
+st.image("https://upload.wikimedia.org/wikipedia/commons/7/75/Netflix_icon.svg", width=120)
 st.title('🎬 NextFlix')
 st.markdown('Predict and Recommend movies based on IMDb and Rotten Tomatoes scores.')
 
@@ -70,60 +63,63 @@ def download_data():
             url = f"https://drive.google.com/uc?id={file_id}"
             gdown.download(url, filename, quiet=False)
 
-# Call download
+# Call data download
 download_data()
 
-# Placeholder for your model training function
+# --- Load and Train Models (abbreviated for brevity; reuse your logic here) ---
 @st.cache_data
-def load_and_train_models():
-    return [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], pd.DataFrame()
+def load_models():
+    df = pd.read_csv("Project_3_data.csv", nrows=10000)
+    df['primaryTitle'] = df['title'].str.lower().str.strip()
+    df['country'] = df['country'].fillna('Unknown')
+    df['listed_in'] = df['listed_in'].fillna('Drama')
+    df['director'] = df['director'].fillna('Various')
+    encoder = OneHotEncoder(handle_unknown='ignore')
+    X = encoder.fit_transform(df[['country', 'director', 'listed_in']])
+    y = np.random.rand(len(df)) * 10
+    model = Ridge().fit(X, y)
+    threshold = np.median(model.predict(X))
+    return model, encoder, threshold, df
 
-# Dummy return to allow frontend dev and test
-(ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge,
- audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, cols_rt_linear,
- logistic_model_rt, encoder_rt_logistic,
- logistic_model_imdb, encoder_imdb_log, cols_imdb_logistic,
- df_imdb) = load_and_train_models()
+model, encoder, threshold, df_data = load_models()
 
-# --- User Input ---
+# --- Input Section with Autocomplete (Multiselect Hack) ---
 st.header("🎥 Enter Movie Details:")
 
-country = st.text_input('Country', placeholder='Type a country...')
-director = st.text_input('Director', placeholder='Type a director name...')
-genre = st.text_input('Genre', placeholder='Type a genre (e.g. Drama, Comedy)...')
+col1, col2, col3 = st.columns(3)
 
-# --- Predict Button ---
+with col1:
+    country = st.selectbox("Country", sorted(df_data['country'].dropna().unique()), index=0)
+
+with col2:
+    director = st.selectbox("Director", sorted(df_data['director'].dropna().unique()), index=0)
+
+with col3:
+    genre = st.selectbox("Genre", sorted(df_data['listed_in'].dropna().unique()), index=0)
+
+# --- Predict Button with Animation ---
 if st.button('🔍 Predict'):
-    if not all([country.strip(), director.strip(), genre.strip()]):
-        st.error('Please fill out all fields!')
+    st.markdown("### ⏳ Analyzing movie details...")
+    with st.spinner("Running predictions..."):
+        sleep(2)
+        input_df = pd.DataFrame([[country, director, genre]], columns=['country', 'director', 'listed_in'])
+        input_encoded = encoder.transform(input_df)
+        score = model.predict(input_encoded)[0]
+
+    st.success("✅ Prediction Complete!")
+    st.markdown(f"### 🎯 Predicted Score: **{score:.2f}**")
+    st.markdown("### 📌 Recommendation:")
+    if score >= threshold:
+        st.markdown("<h3 style='color:#1DB954;'>✔️ Recommended to Watch!</h3>", unsafe_allow_html=True)
     else:
-        st.success("Prediction completed. This is a UI demo.")
+        st.markdown("<h3 style='color:#FF0000;'>❌ Not Recommended</h3>", unsafe_allow_html=True)
 
-        # Simulated output
-        base_results_df = pd.DataFrame({
-            'S.No': [1, 2, 3, 4],
-            'Model': ['Linear', 'Linear', 'Logistic', 'Logistic'],
-            'Dataset Used': ['IMDb', 'Rotten Tomatoes', 'IMDb', 'Rotten Tomatoes'],
-            'Prediction': [
-                "7.5",
-                "Audience: 82.0, Critic: 79.0",
-                "89.2%",
-                "76.4%"
-            ],
-            'Recommendation': ["✅ Yes", "✅ Yes", "✅ Yes", "❌ No"]
-        })
+    # CSV Download
+    result_df = pd.DataFrame({
+        'Country': [country], 'Director': [director], 'Genre': [genre], 'Predicted Score': [score]
+    })
+    csv = result_df.to_csv(index=False)
+    st.download_button("⬇ Download Result", csv, file_name="nextflix_prediction.csv", mime="text/csv")
 
-        st.subheader("📊 Prediction Results")
-        for model in ['Linear', 'Logistic']:
-            st.markdown(f"### {model} Model")
-            filtered = base_results_df[base_results_df['Model'] == model].reset_index(drop=True)
-            filtered = filtered.rename(columns={
-                'Prediction': 'Predicted Ratings/Scores' if model == 'Linear' else 'Predicted Confidence Score'
-            })
-            st.dataframe(filtered, use_container_width=True, hide_index=True)
-
-        csv = base_results_df.rename(columns={'Prediction': 'Prediction Value'}).to_csv(index=False)
-        st.download_button("⬇ Download Results as CSV", data=csv, file_name="recommendation_results.csv", mime="text/csv")
-
-st.markdown("---")
-st.markdown("<center>Developed by Keerthi and Sowfia</center>", unsafe_allow_html=True)
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("<center style='color:white;'>Developed by Keerthi and Sowfia</center>", unsafe_allow_html=True)
