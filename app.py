@@ -81,15 +81,6 @@ def load_and_train_models():
     title_basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=50000) 
 
     title_basics['primaryTitle'] = title_basics['primaryTitle'].str.strip().str.lower() 
-
- 
-
-    st.markdown("### 🔎 Debug Preview of Titles") 
-
-    st.write("Project DataFrame Titles:", project_df['primaryTitle'].dropna().unique()[:5]) 
-
-    st.write("Title Basics Titles:", title_basics['primaryTitle'].dropna().unique()[:5]) 
-
  
 
     title_ratings = pd.read_csv("title.ratings.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=50000) 
