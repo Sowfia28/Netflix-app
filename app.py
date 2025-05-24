@@ -268,24 +268,20 @@ def load_and_train_models():
  
 
     return (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, X_raw_imdb.columns, 
-
-            audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, X_raw_rt.columns, 
-
-            logistic_model_rt, encoder_rt_logistic, 
-
-            logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns) 
+        audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, X_raw_rt.columns, 
+        logistic_model_rt, encoder_rt_logistic, 
+        logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns,
+        df_imdb)
 
  
 
 # --- Load All Models --- 
 
 (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge, 
-
  audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, cols_rt_linear, 
-
  logistic_model_rt, encoder_rt_logistic, 
-
- logistic_model_imdb, encoder_imdb_log, cols_imdb_logistic) = load_and_train_models() 
+ logistic_model_imdb, encoder_imdb_log, cols_imdb_logistic,
+ df_imdb) = load_and_train_models()
 
  
 
