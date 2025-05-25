@@ -1,3 +1,5 @@
+# Streamlit App: NextFlix
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -12,7 +14,7 @@ st.set_page_config(page_title="NextFlix", layout="centered")
 st.title('NextFlix')
 st.markdown('Predict and Recommend movies based on IMDb and Rotten Tomatoes scores.')
 
-# --- Download Data from Google Drive ---
+# --- Download Data ---
 @st.cache_resource
 def download_data():
     files = {
@@ -58,10 +60,6 @@ def load_and_train_models():
     df_imdb.dropna(subset=['country', 'listed_in', 'averageRating', 'director'], inplace=True)
     df_imdb = df_imdb.drop_duplicates(subset=['primaryTitle'])
 
-    if df_imdb.empty:
-        st.error("❌ df_imdb is empty after merging all IMDb data. Check input formats or dataset integrity.")
-        st.stop()
-
     X_raw_imdb = df_imdb[['country', 'director', 'listed_in']]
     y_imdb = df_imdb['averageRating']
     encoder_imdb_ridge = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
@@ -74,7 +72,7 @@ def load_and_train_models():
     df_info['title'] = df_info['title'].str.strip().str.lower()
     project_df['title_lower'] = project_df['primaryTitle'].str.strip().str.lower()
 
-    combined_rt = pd.merge(project_df, df_info[['title', 'audience_score', 'critic_score']],  
+    combined_rt = pd.merge(project_df, df_info[['title', 'audience_score', 'critic_score']],
                            left_on='title_lower', right_on='title', how='inner')
     combined_rt.dropna(subset=['country', 'director', 'listed_in', 'audience_score', 'critic_score'], inplace=True)
     combined_rt = combined_rt.drop_duplicates(subset=['title'])
@@ -123,7 +121,7 @@ def load_and_train_models():
     target_imdb_log = df_imdb_log['recommend']
 
     if len(target_imdb_log.unique()) < 2:
-        st.warning("⚠️ IMDb logistic model skipped: only one class found in data. Cannot train model.")
+        st.warning("⚠️ IMDb logistic model skipped: only one class found in data.")
         logistic_model_imdb = None
         encoder_imdb_log = None
     else:
@@ -157,18 +155,18 @@ if st.button('Predict'):
         with st.spinner('Predicting...'):
             input_df = pd.DataFrame([[country, director, genre]], columns=['country', 'director', 'listed_in'])
 
-            # Fallback logic for IMDb Linear
-            for col in ['country', 'director', 'listed_in']:
-                if input_df[col].iloc[0] not in encoder_imdb_ridge.categories_[list(cols_imdb_ridge).index(col)]:
-                    input_df[col] = X_raw_imdb[col].mode()[0]
+            # IMDb Linear fallback
+            for i, col in enumerate(cols_imdb_ridge):
+                if input_df[col].iloc[0] not in encoder_imdb_ridge.categories_[i]:
+                    input_df.at[0, col] = X_raw_imdb[col].mode()[0]
 
             imdb_input = encoder_imdb_ridge.transform(input_df[cols_imdb_ridge])
             imdb_pred = ridge_model_imdb.predict(imdb_input)[0]
 
-            # Fallback logic for RT Linear
-            for col in ['country', 'director', 'listed_in']:
-                if input_df[col].iloc[0] not in encoder_rt_linear.categories_[list(cols_rt_linear).index(col)]:
-                    input_df[col] = X_raw_rt[col].mode()[0]
+            # RT Linear fallback
+            for i, col in enumerate(cols_rt_linear):
+                if input_df[col].iloc[0] not in encoder_rt_linear.categories_[i]:
+                    input_df.at[0, col] = X_raw_rt[col].mode()[0]
 
             rt_input = encoder_rt_linear.transform(input_df[cols_rt_linear])
             audience_pred = audience_model_rt.predict(rt_input)[0]
