@@ -62,7 +62,7 @@ def load_and_train_models():
         st.error("❌ df_imdb is empty after merging all IMDb data. Check input formats or dataset integrity.")
         st.stop()
 
-    X_raw_imdb = df_imdb[['country', 'director', 'listed_in']]
+    X_raw_imdb = df_imdb[['country', 'director', 'listed_in']].copy()
     y_imdb = df_imdb['averageRating']
     encoder_imdb_ridge = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
     X_encoded_imdb = encoder_imdb_ridge.fit_transform(X_raw_imdb)
@@ -79,7 +79,7 @@ def load_and_train_models():
     combined_rt.dropna(subset=['country', 'director', 'listed_in', 'audience_score', 'critic_score'], inplace=True)
     combined_rt = combined_rt.drop_duplicates(subset=['title'])
 
-    X_raw_rt = combined_rt[['country', 'director', 'listed_in']]
+    X_raw_rt = combined_rt[['country', 'director', 'listed_in']].copy()
     y_rt = combined_rt[['audience_score', 'critic_score']]
     encoder_rt_linear = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
     X_encoded_rt = encoder_rt_linear.fit_transform(X_raw_rt)
@@ -134,7 +134,8 @@ def load_and_train_models():
             audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, X_raw_rt.columns,
             logistic_model_rt, encoder_rt_logistic,
             logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns,
-            X_raw_imdb, X_raw_rt, features_imdb_log) 
+            X_raw_imdb.copy(), X_raw_rt.copy(), features_imdb_log.copy())
+
  
 # --- Load All Models ---
  
