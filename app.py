@@ -87,12 +87,15 @@ def load_and_train_models():
 
     return (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, X_raw_imdb.columns, X_raw_imdb,
             audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, X_raw_rt.columns, X_raw_rt,
-            logistic_model_rt, encoder_rt_logistic)
+            logistic_model_rt, encoder_rt_logistic,
+            logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns)
+
 
 # --- Load All Models ---
 (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge, X_raw_imdb,
  audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, cols_rt_linear, X_raw_rt,
- logistic_model_rt, encoder_rt_logistic) = load_and_train_models()
+ logistic_model_rt, encoder_rt_logistic,
+ logistic_model_imdb, encoder_imdb_log, cols_imdb_logistic) = load_and_train_models()
 
 # --- User Input ---
 st.header("Enter Movie Details:")
@@ -117,7 +120,7 @@ if st.button('Predict'):
 
             for col in cols_rt_linear:
                 if input_df[col].iloc[0] not in X_raw_rt[col].unique():
-                    st.warning(f"'{input_df[col].iloc[0]}' not found in Rotten Tomatoes training data for '{col}'. Replacing with default.")
+                    st.warning(f"'{input_df[col].iloc[0]}' not found in RT training data for '{col}'. Replacing with default.")
                     input_df.at[0, col] = X_raw_rt[col].mode(dropna=True)[0]
 
             st.subheader("🔍 Processed Input")
@@ -178,7 +181,6 @@ if st.button('Predict'):
 
             csv = base_results_df.rename(columns={'Prediction': 'Prediction Value'}).to_csv(index=False)
             st.download_button("Download Results as CSV", data=csv, file_name="recommendation_results.csv", mime="text/csv")
-
 
 st.markdown("---")
 st.markdown("Developed by Keerthi and Sowfia")
