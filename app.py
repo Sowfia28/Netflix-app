@@ -88,13 +88,13 @@ def load_and_train_models():
     # Placeholder for IMDb logistic model
     logistic_model_imdb = None
     encoder_imdb_log = None
-    features_imdb_log = X_raw_imdb.copy()
+    cols_imdb_logistic = X_raw_imdb.columns
 
     return (
         ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, X_raw_imdb.columns, X_raw_imdb,
         audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, X_raw_rt.columns, X_raw_rt,
         logistic_model_rt, encoder_rt_logistic,
-        logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns
+        logistic_model_imdb, encoder_imdb_log, cols_imdb_logistic
     )
 
 # --- Load All Models ---
