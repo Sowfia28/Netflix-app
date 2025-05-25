@@ -105,48 +105,63 @@ if st.button('Predict'):
     if not all([country.strip(), director.strip(), genre.strip()]):
         st.error('Please fill out all fields!')
     else:
-        with st.spinner('Predicting...'):
+                with st.spinner('Predicting...'):
             input_df = pd.DataFrame([[country, director, genre]], columns=['country', 'director', 'listed_in'])
 
-            for col in ['country', 'director', 'listed_in']:
-                i = cols_imdb_ridge.get_loc(col)
-                valid_values = list(encoder_imdb_ridge.categories_[i])
-                input_value = str(input_df.at[0, col]).strip().lower()
-                normalized_valid = [str(v).strip().lower() for v in valid_values]
-                if input_value not in normalized_valid:
-                    input_df.at[0, col] = 'Unknown'
+            # --- Validate inputs against training data ---
+            for col in cols_imdb_ridge:
+                if input_df[col].iloc[0] not in X_raw_imdb[col].unique():
+                    st.warning(f"'{input_df[col].iloc[0]}' not found in IMDb training data for '{col}'. Replacing with default.")
+                    input_df.at[0, col] = X_raw_imdb[col].mode(dropna=True)[0]
 
+            for col in cols_rt_linear:
+                if input_df[col].iloc[0] not in X_raw_rt[col].unique():
+                    st.warning(f"'{input_df[col].iloc[0]}' not found in Rotten Tomatoes training data for '{col}'. Replacing with default.")
+                    input_df.at[0, col] = X_raw_rt[col].mode(dropna=True)[0]
+
+            st.subheader("🔍 Processed Input")
+            st.write(input_df)
+
+            # --- IMDb Linear ---
             imdb_input = encoder_imdb_ridge.transform(input_df[cols_imdb_ridge])
+            st.write("🎯 Encoded IMDb Input Shape:", imdb_input.shape)
             imdb_pred = ridge_model_imdb.predict(imdb_input)[0]
 
-            for col in ['country', 'director', 'listed_in']:
-                i = cols_rt_linear.get_loc(col)
-                valid_values = list(encoder_rt_linear.categories_[i])
-                input_value = str(input_df.at[0, col]).strip().lower()
-                normalized_valid = [str(v).strip().lower() for v in valid_values]
-                if input_value not in normalized_valid:
-                    input_df.at[0, col] = 'Unknown'
-
+            # --- RT Linear ---
             rt_input = encoder_rt_linear.transform(input_df[cols_rt_linear])
+            st.write("🎯 Encoded RT Input Shape:", rt_input.shape)
             audience_pred = audience_model_rt.predict(rt_input)[0]
             critic_pred = critic_model_rt.predict(rt_input)[0]
 
+            # --- RT Logistic ---
             rt_log_input = encoder_rt_logistic.transform(input_df[cols_rt_linear])
             rt_log_pred = logistic_model_rt.predict(rt_log_input)[0]
             rt_log_conf = logistic_model_rt.predict_proba(rt_log_input)[0][1]
 
+            # --- IMDb Logistic ---
+            if logistic_model_imdb is not None:
+                imdb_log_input = encoder_imdb_log.transform(input_df[cols_imdb_logistic])
+                imdb_log_pred = logistic_model_imdb.predict(imdb_log_input)[0]
+                imdb_log_conf = logistic_model_imdb.predict_proba(imdb_log_input)[0][1]
+            else:
+                imdb_log_pred = 0
+                imdb_log_conf = 0.0
+
+            # --- Display Results ---
             base_results_df = pd.DataFrame({
-                'S.No': [1, 2, 3],
-                'Model': ['Linear', 'Linear', 'Logistic'],
-                'Dataset Used': ['IMDb', 'Rotten Tomatoes', 'Rotten Tomatoes'],
+                'S.No': [1, 2, 3, 4],
+                'Model': ['Linear', 'Linear', 'Logistic', 'Logistic'],
+                'Dataset Used': ['IMDb', 'Rotten Tomatoes', 'IMDb', 'Rotten Tomatoes'],
                 'Prediction': [
                     f"{imdb_pred:.2f}",
                     f"Audience: {audience_pred:.2f}, Critic: {critic_pred:.2f}",
+                    f"{imdb_log_conf:.2%}",
                     f"{rt_log_conf:.2%}"
                 ],
                 'Recommendation': [
                     "✅ Yes" if imdb_pred >= imdb_threshold else "❌ No",
                     "✅ Yes" if (audience_pred >= audience_threshold and critic_pred >= critic_threshold) else "❌ No",
+                    "✅ Yes" if imdb_log_pred else "❌ No",
                     "✅ Yes" if rt_log_pred else "❌ No"
                 ]
             })
