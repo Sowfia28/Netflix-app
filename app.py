@@ -85,11 +85,17 @@ def load_and_train_models():
     y_log_rt = ((y_rt['audience_score'] >= audience_threshold) & (y_rt['critic_score'] >= critic_threshold)).astype(int)
     logistic_model_rt = LogisticRegression(max_iter=1000).fit(X_encoded_log_rt, y_log_rt)
 
-    return (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, X_raw_imdb.columns, X_raw_imdb,
-            audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, X_raw_rt.columns, X_raw_rt,
-            logistic_model_rt, encoder_rt_logistic,
-            logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns)
+    # Placeholder for IMDb logistic model
+    logistic_model_imdb = None
+    encoder_imdb_log = None
+    features_imdb_log = X_raw_imdb.copy()
 
+    return (
+        ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, X_raw_imdb.columns, X_raw_imdb,
+        audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, X_raw_rt.columns, X_raw_rt,
+        logistic_model_rt, encoder_rt_logistic,
+        logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns
+    )
 
 # --- Load All Models ---
 (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge, X_raw_imdb,
@@ -105,7 +111,6 @@ genre = st.text_input('Genre', help="Example: Drama")
 
 # --- Predict Button ---
 if st.button('Predict'):
-
     if not all([country.strip(), director.strip(), genre.strip()]):
         st.error('Please fill out all fields!')
     else:
@@ -123,17 +128,15 @@ if st.button('Predict'):
                     st.warning(f"'{input_df[col].iloc[0]}' not found in RT training data for '{col}'. Replacing with default.")
                     input_df.at[0, col] = X_raw_rt[col].mode(dropna=True)[0]
 
-            st.subheader("🔍 Processed Input")
+            st.subheader("\U0001F50D Processed Input")
             st.write(input_df)
 
             # --- IMDb Linear ---
             imdb_input = encoder_imdb_ridge.transform(input_df[cols_imdb_ridge])
-            st.write("🎯 Encoded IMDb Input Shape:", imdb_input.shape)
             imdb_pred = ridge_model_imdb.predict(imdb_input)[0]
 
             # --- RT Linear ---
             rt_input = encoder_rt_linear.transform(input_df[cols_rt_linear])
-            st.write("🎯 Encoded RT Input Shape:", rt_input.shape)
             audience_pred = audience_model_rt.predict(rt_input)[0]
             critic_pred = critic_model_rt.predict(rt_input)[0]
 
@@ -142,7 +145,7 @@ if st.button('Predict'):
             rt_log_pred = logistic_model_rt.predict(rt_log_input)[0]
             rt_log_conf = logistic_model_rt.predict_proba(rt_log_input)[0][1]
 
-            # --- IMDb Logistic ---
+            # --- IMDb Logistic (disabled if not trained) ---
             if logistic_model_imdb is not None:
                 imdb_log_input = encoder_imdb_log.transform(input_df[cols_imdb_logistic])
                 imdb_log_pred = logistic_model_imdb.predict(imdb_log_input)[0]
@@ -151,7 +154,6 @@ if st.button('Predict'):
                 imdb_log_pred = 0
                 imdb_log_conf = 0.0
 
-            # --- Display Results ---
             base_results_df = pd.DataFrame({
                 'S.No': [1, 2, 3, 4],
                 'Model': ['Linear', 'Linear', 'Logistic', 'Logistic'],
