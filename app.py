@@ -196,8 +196,7 @@ def load_and_train_models():
  
     project3 = project_df[['primaryTitle', 'country']].copy()
  
- 
-movies = basics[basics['titleType'] == 'movie'].copy()
+    movies = basics[basics['titleType'] == 'movie'].copy()
  
     movies['primaryTitle'] = movies['primaryTitle'].str.strip().str.lower()
  
