@@ -105,7 +105,7 @@ if st.button('Predict'):
     if not all([country.strip(), director.strip(), genre.strip()]):
         st.error('Please fill out all fields!')
     else:
-                with st.spinner('Predicting...'):
+            with st.spinner('Predicting...'):
             input_df = pd.DataFrame([[country, director, genre]], columns=['country', 'director', 'listed_in'])
 
             # --- Validate inputs against training data ---
