@@ -119,12 +119,12 @@ if st.button('Predict'):
 
             # --- Validate inputs against training data ---
             for col in cols_imdb_ridge:
-                if input_df[col].iloc[0] not in X_raw_imdb[col].unique():
+                if input_df.at[0, col] not in X_raw_imdb[col].unique():
                     st.warning(f"'{input_df[col].iloc[0]}' not found in IMDb training data for '{col}'. Replacing with default.")
                     input_df.at[0, col] = X_raw_imdb[col].mode(dropna=True)[0]
 
             for col in cols_rt_linear:
-                if input_df[col].iloc[0] not in X_raw_rt[col].unique():
+                if input_df.at[0, col] not in X_raw_rt[col].unique():
                     st.warning(f"'{input_df[col].iloc[0]}' not found in RT training data for '{col}'. Replacing with default.")
                     input_df.at[0, col] = X_raw_rt[col].mode(dropna=True)[0]
 
