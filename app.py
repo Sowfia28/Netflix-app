@@ -38,7 +38,7 @@ def load_and_train_models():
     project_df['primaryTitle'] = project_df['primaryTitle'].str.strip().str.lower()
 
     title_basics = pd.read_csv("title.basics.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=50000)
-    title_basics['primaryTitle'] = title_basics['primaryTitle'].str.strip().str.lower() 
+    title_basics['primaryTitle'] = title_basics['primaryTitle'].str.strip().str.lower()
 
     title_ratings = pd.read_csv("title.ratings.tsv", sep="\t", na_values="\\N", low_memory=False, nrows=50000)
     title_crew = pd.read_csv("title.crew.tsv", sep="\t", na_values="\\N", nrows=50000)
@@ -132,14 +132,14 @@ def load_and_train_models():
         X_train_imdb, _, y_train_imdb, _ = train_test_split(X_encoded_imdb_log, target_imdb_log, test_size=0.2, random_state=42)
         logistic_model_imdb = LogisticRegression(max_iter=1000).fit(X_train_imdb, y_train_imdb)
 
-    return (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, X_raw_imdb.columns,
-            audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, X_raw_rt.columns,
+    return (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, X_raw_imdb.columns, X_raw_imdb,
+            audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, X_raw_rt.columns, X_raw_rt,
             logistic_model_rt, encoder_rt_logistic,
             logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns)
 
 # --- Load All Models ---
-(ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge,
- audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, cols_rt_linear,
+(ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge, X_raw_imdb,
+ audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, cols_rt_linear, X_raw_rt,
  logistic_model_rt, encoder_rt_logistic,
  logistic_model_imdb, encoder_imdb_log, cols_imdb_logistic) = load_and_train_models()
 
@@ -157,7 +157,7 @@ if st.button('Predict'):
         with st.spinner('Predicting...'):
             input_df = pd.DataFrame([[country, director, genre]], columns=['country', 'director', 'listed_in'])
 
-            # Fallback logic for IMDb linear model
+            # Fallback logic for IMDb Linear
             for col in ['country', 'director', 'listed_in']:
                 if input_df[col].iloc[0] not in encoder_imdb_ridge.categories_[list(cols_imdb_ridge).index(col)]:
                     input_df[col] = X_raw_imdb[col].mode()[0]
@@ -165,7 +165,7 @@ if st.button('Predict'):
             imdb_input = encoder_imdb_ridge.transform(input_df[cols_imdb_ridge])
             imdb_pred = ridge_model_imdb.predict(imdb_input)[0]
 
-            # Fallback logic for RT linear model
+            # Fallback logic for RT Linear
             for col in ['country', 'director', 'listed_in']:
                 if input_df[col].iloc[0] not in encoder_rt_linear.categories_[list(cols_rt_linear).index(col)]:
                     input_df[col] = X_raw_rt[col].mode()[0]
