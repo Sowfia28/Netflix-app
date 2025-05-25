@@ -112,7 +112,11 @@ if st.button('Predict'):
                 i = cols_imdb_ridge.get_loc(col)
                 valid_values = list(encoder_imdb_ridge.categories_[i])
                 if str(input_df[col].iloc[0]).strip().lower() not in [str(v).strip().lower() for v in valid_values]:
-                    input_df.at[0, col] = X_raw_imdb[col].mode()[0]
+                    if col in X_raw_imdb.columns:
+                        input_df.at[0, col] = X_raw_imdb[col].mode(dropna=True)[0]
+                    else:
+                        st.warning(f"⚠️ Column '{col}' not found in X_raw_imdb. Using default fallback value.")
+                        input_df.at[0, col] = 'Unknown'
 
             imdb_input = encoder_imdb_ridge.transform(input_df[cols_imdb_ridge])
             imdb_pred = ridge_model_imdb.predict(imdb_input)[0]
@@ -121,7 +125,11 @@ if st.button('Predict'):
                 i = cols_rt_linear.get_loc(col)
                 valid_values = list(encoder_rt_linear.categories_[i])
                 if str(input_df[col].iloc[0]).strip().lower() not in [str(v).strip().lower() for v in valid_values]:
-                    input_df.at[0, col] = X_raw_rt[col].mode()[0]
+                    if col in X_raw_rt.columns:
+                        input_df.at[0, col] = X_raw_rt[col].mode(dropna=True)[0]
+                    else:
+                        st.warning(f"⚠️ Column '{col}' not found in X_raw_rt. Using default fallback value.")
+                        input_df.at[0, col] = 'Unknown'
 
             rt_input = encoder_rt_linear.transform(input_df[cols_rt_linear])
             audience_pred = audience_model_rt.predict(rt_input)[0]
