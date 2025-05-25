@@ -155,19 +155,21 @@ if st.button('Predict'):
         with st.spinner('Predicting...'):
             input_df = pd.DataFrame([[country, director, genre]], columns=['country', 'director', 'listed_in'])
 
-            # IMDb Linear fallback logic (final fix)
+            # IMDb Linear fallback logic
             for col in ['country', 'director', 'listed_in']:
                 i = cols_imdb_ridge.get_loc(col)
-                if input_df[col].iloc[0] not in encoder_imdb_ridge.categories_[i]:
+                valid_values = list(encoder_imdb_ridge.categories_[i])
+                if input_df[col].iloc[0] not in valid_values:
                     input_df.at[0, col] = X_raw_imdb[col].mode()[0]
 
             imdb_input = encoder_imdb_ridge.transform(input_df[cols_imdb_ridge])
             imdb_pred = ridge_model_imdb.predict(imdb_input)[0]
 
-            # RT Linear fallback logic (final fix)
+            # RT Linear fallback logic
             for col in ['country', 'director', 'listed_in']:
                 i = cols_rt_linear.get_loc(col)
-                if input_df[col].iloc[0] not in encoder_rt_linear.categories_[i]:
+                valid_values = list(encoder_rt_linear.categories_[i])
+                if input_df[col].iloc[0] not in valid_values:
                     input_df.at[0, col] = X_raw_rt[col].mode()[0]
 
             rt_input = encoder_rt_linear.transform(input_df[cols_rt_linear])
