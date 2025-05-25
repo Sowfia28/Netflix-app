@@ -1,5 +1,3 @@
-# Streamlit App: NextFlix
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -48,10 +46,6 @@ def load_and_train_models():
     df_info = pd.read_csv("movie_info.csv", nrows=50000)
 
     df_imdb = pd.merge(project_df, title_basics[['tconst', 'primaryTitle']], on='primaryTitle', how='left')
-    if df_imdb['tconst'].isnull().all():
-        st.error("❌ No matches found between project_df and title_basics on 'primaryTitle'. Check formatting.")
-        st.stop()
-
     df_imdb = pd.merge(df_imdb, title_ratings[['tconst', 'averageRating']], on='tconst', how='left')
     df_imdb = pd.merge(df_imdb, title_crew[['tconst', 'directors']], on='tconst', how='left')
     df_imdb['director_id'] = df_imdb['directors'].str.split(',').str[0]
@@ -86,60 +80,19 @@ def load_and_train_models():
     audience_threshold = np.median(audience_model_rt.predict(X_encoded_rt))
     critic_threshold = np.median(critic_model_rt.predict(X_encoded_rt))
 
-    df_logistic_rt = combined_rt.copy()
-    df_logistic_rt['recommend'] = np.where(
-        (df_logistic_rt['audience_score'] >= audience_threshold) &
-        (df_logistic_rt['critic_score'] >= critic_threshold), 1, 0)
-    X_log_rt = df_logistic_rt[['country', 'director', 'listed_in']]
-    y_log_rt = df_logistic_rt['recommend']
     encoder_rt_logistic = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
-    X_encoded_log_rt = encoder_rt_logistic.fit_transform(X_log_rt)
-    X_train_rt, _, y_train_rt, _ = train_test_split(X_encoded_log_rt, y_log_rt, test_size=0.2, random_state=42)
-    logistic_model_rt = LogisticRegression(max_iter=1000).fit(X_train_rt, y_train_rt)
-
-    basics = title_basics.astype(str)
-    ratings = title_ratings.astype(str)
-    crew = title_crew.astype(str)
-    names = name_basics.astype(str)
-    project3 = project_df[['primaryTitle', 'country']].copy()
-
-    movies = basics[basics['titleType'] == 'movie'].copy()
-    movies['primaryTitle'] = movies['primaryTitle'].str.strip().str.lower()
-    df_imdb_log = movies.merge(ratings, on='tconst', how='inner')
-    df_imdb_log = df_imdb_log.merge(crew[['tconst', 'directors']], on='tconst', how='left')
-    df_imdb_log.dropna(subset=['averageRating', 'genres', 'directors'], inplace=True)
-    df_imdb_log['averageRating'] = df_imdb_log['averageRating'].astype(float)
-    df_imdb_log['recommend'] = (df_imdb_log['averageRating'] >= df_imdb_log['averageRating'].median()).astype(int)
-    df_imdb_log['directors'] = df_imdb_log['directors'].apply(lambda x: x.split(',')[0])
-    id_to_name = dict(zip(names['nconst'], names['primaryName']))
-    df_imdb_log['director_name'] = df_imdb_log['directors'].map(id_to_name)
-    df_imdb_log = df_imdb_log.merge(project3, on='primaryTitle', how='left')
-    df_imdb_log.dropna(subset=['country', 'director_name'], inplace=True)
-
-    features_imdb_log = df_imdb_log[['country', 'director_name', 'genres']]
-    features_imdb_log.columns = ['country', 'director', 'listed_in']
-    target_imdb_log = df_imdb_log['recommend']
-
-    if len(target_imdb_log.unique()) < 2:
-        st.warning("⚠️ IMDb logistic model skipped: only one class found in data.")
-        logistic_model_imdb = None
-        encoder_imdb_log = None
-    else:
-        encoder_imdb_log = OneHotEncoder(handle_unknown='ignore')
-        X_encoded_imdb_log = encoder_imdb_log.fit_transform(features_imdb_log)
-        X_train_imdb, _, y_train_imdb, _ = train_test_split(X_encoded_imdb_log, target_imdb_log, test_size=0.2, random_state=42)
-        logistic_model_imdb = LogisticRegression(max_iter=1000).fit(X_train_imdb, y_train_imdb)
+    X_encoded_log_rt = encoder_rt_logistic.fit_transform(X_raw_rt)
+    y_log_rt = ((y_rt['audience_score'] >= audience_threshold) & (y_rt['critic_score'] >= critic_threshold)).astype(int)
+    logistic_model_rt = LogisticRegression(max_iter=1000).fit(X_encoded_log_rt, y_log_rt)
 
     return (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, X_raw_imdb.columns, X_raw_imdb,
             audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, X_raw_rt.columns, X_raw_rt,
-            logistic_model_rt, encoder_rt_logistic,
-            logistic_model_imdb, encoder_imdb_log, features_imdb_log.columns)
+            logistic_model_rt, encoder_rt_logistic)
 
 # --- Load All Models ---
 (ridge_model_imdb, encoder_imdb_ridge, imdb_threshold, cols_imdb_ridge, X_raw_imdb,
  audience_model_rt, critic_model_rt, encoder_rt_linear, audience_threshold, critic_threshold, cols_rt_linear, X_raw_rt,
- logistic_model_rt, encoder_rt_logistic,
- logistic_model_imdb, encoder_imdb_log, cols_imdb_logistic) = load_and_train_models()
+ logistic_model_rt, encoder_rt_logistic) = load_and_train_models()
 
 # --- User Input ---
 st.header("Enter Movie Details:")
@@ -155,21 +108,19 @@ if st.button('Predict'):
         with st.spinner('Predicting...'):
             input_df = pd.DataFrame([[country, director, genre]], columns=['country', 'director', 'listed_in'])
 
-            # IMDb Linear fallback logic
             for col in ['country', 'director', 'listed_in']:
                 i = cols_imdb_ridge.get_loc(col)
                 valid_values = list(encoder_imdb_ridge.categories_[i])
-                if input_df[col].iloc[0] not in valid_values:
+                if str(input_df[col].iloc[0]).strip().lower() not in [str(v).strip().lower() for v in valid_values]:
                     input_df.at[0, col] = X_raw_imdb[col].mode()[0]
 
             imdb_input = encoder_imdb_ridge.transform(input_df[cols_imdb_ridge])
             imdb_pred = ridge_model_imdb.predict(imdb_input)[0]
 
-            # RT Linear fallback logic
             for col in ['country', 'director', 'listed_in']:
                 i = cols_rt_linear.get_loc(col)
                 valid_values = list(encoder_rt_linear.categories_[i])
-                if input_df[col].iloc[0] not in valid_values:
+                if str(input_df[col].iloc[0]).strip().lower() not in [str(v).strip().lower() for v in valid_values]:
                     input_df.at[0, col] = X_raw_rt[col].mode()[0]
 
             rt_input = encoder_rt_linear.transform(input_df[cols_rt_linear])
@@ -180,28 +131,18 @@ if st.button('Predict'):
             rt_log_pred = logistic_model_rt.predict(rt_log_input)[0]
             rt_log_conf = logistic_model_rt.predict_proba(rt_log_input)[0][1]
 
-            if logistic_model_imdb is not None:
-                imdb_log_input = encoder_imdb_log.transform(input_df[cols_imdb_logistic])
-                imdb_log_pred = logistic_model_imdb.predict(imdb_log_input)[0]
-                imdb_log_conf = logistic_model_imdb.predict_proba(imdb_log_input)[0][1]
-            else:
-                imdb_log_pred = 0
-                imdb_log_conf = 0.0
-
             base_results_df = pd.DataFrame({
-                'S.No': [1, 2, 3, 4],
-                'Model': ['Linear', 'Linear', 'Logistic', 'Logistic'],
-                'Dataset Used': ['IMDb', 'Rotten Tomatoes', 'IMDb', 'Rotten Tomatoes'],
+                'S.No': [1, 2, 3],
+                'Model': ['Linear', 'Linear', 'Logistic'],
+                'Dataset Used': ['IMDb', 'Rotten Tomatoes', 'Rotten Tomatoes'],
                 'Prediction': [
                     f"{imdb_pred:.2f}",
                     f"Audience: {audience_pred:.2f}, Critic: {critic_pred:.2f}",
-                    f"{imdb_log_conf:.2%}",
                     f"{rt_log_conf:.2%}"
                 ],
                 'Recommendation': [
                     "✅ Yes" if imdb_pred >= imdb_threshold else "❌ No",
                     "✅ Yes" if (audience_pred >= audience_threshold and critic_pred >= critic_threshold) else "❌ No",
-                    "✅ Yes" if imdb_log_pred else "❌ No",
                     "✅ Yes" if rt_log_pred else "❌ No"
                 ]
             })
