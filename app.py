@@ -46,7 +46,7 @@ def load_and_train_models():
 
     df_imdb = pd.merge(project_df, title_basics[['tconst', 'primaryTitle']], on='primaryTitle', how='left')
     if df_imdb['tconst'].isnull().all():
-        st.error("❌ No matches found between project_df and title_basics on 'primaryTitle'. Check formatting.")
+        st.error("\u274c No matches found between project_df and title_basics on 'primaryTitle'. Check formatting.")
         st.stop()
 
     df_imdb = pd.merge(df_imdb, title_ratings[['tconst', 'averageRating']], on='tconst', how='left')
@@ -58,12 +58,12 @@ def load_and_train_models():
     df_imdb = df_imdb.drop_duplicates(subset=['primaryTitle'])
 
     if df_imdb.empty:
-        st.error("❌ df_imdb is empty after merging all IMDb data. Check input formats or dataset integrity.")
+        st.error("\u274c df_imdb is empty after merging all IMDb data. Check input formats or dataset integrity.")
         st.stop()
 
     X_raw_imdb = df_imdb[['country', 'director', 'listed_in']]
     y_imdb = df_imdb['averageRating']
-    encoder_imdb_ridge = OneHotEncoder(handle_unknown='ignore', sparse=False)
+    encoder_imdb_ridge = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
     X_encoded_imdb = encoder_imdb_ridge.fit_transform(X_raw_imdb)
     ridge_model_imdb = Ridge(alpha=1.0).fit(X_encoded_imdb, y_imdb)
     imdb_threshold = np.median(ridge_model_imdb.predict(X_encoded_imdb))
@@ -80,7 +80,7 @@ def load_and_train_models():
 
     X_raw_rt = combined_rt[['country', 'director', 'listed_in']]
     y_rt = combined_rt[['audience_score', 'critic_score']]
-    encoder_rt_linear = OneHotEncoder(handle_unknown='ignore', sparse=False)
+    encoder_rt_linear = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
     X_encoded_rt = encoder_rt_linear.fit_transform(X_raw_rt)
     audience_model_rt = LinearRegression().fit(X_encoded_rt, y_rt['audience_score'])
     critic_model_rt = LinearRegression().fit(X_encoded_rt, y_rt['critic_score'])
@@ -93,7 +93,7 @@ def load_and_train_models():
         (df_logistic_rt['critic_score'] >= critic_threshold), 1, 0)
     X_log_rt = df_logistic_rt[['country', 'director', 'listed_in']]
     y_log_rt = df_logistic_rt['recommend']
-    encoder_rt_logistic = OneHotEncoder(handle_unknown='ignore', sparse=False)
+    encoder_rt_logistic = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
     X_encoded_log_rt = encoder_rt_logistic.fit_transform(X_log_rt)
     X_train_rt, _, y_train_rt, _ = train_test_split(X_encoded_log_rt, y_log_rt, test_size=0.2, random_state=42)
     logistic_model_rt = LogisticRegression(max_iter=1000).fit(X_train_rt, y_train_rt)
@@ -122,11 +122,11 @@ def load_and_train_models():
     target_imdb_log = df_imdb_log['recommend']
 
     if len(target_imdb_log.unique()) < 2:
-        st.warning("⚠️ IMDb logistic model skipped: only one class found in data. Cannot train model.")
+        st.warning("\u26a0\ufe0f IMDb logistic model skipped: only one class found in data. Cannot train model.")
         logistic_model_imdb = None
         encoder_imdb_log = None
     else:
-        encoder_imdb_log = OneHotEncoder(handle_unknown='ignore', sparse=False)
+        encoder_imdb_log = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
         X_encoded_imdb_log = encoder_imdb_log.fit_transform(features_imdb_log)
         X_train_imdb, _, y_train_imdb, _ = train_test_split(X_encoded_imdb_log, target_imdb_log, test_size=0.2, random_state=42)
         logistic_model_imdb = LogisticRegression(max_iter=1000).fit(X_train_imdb, y_train_imdb)
